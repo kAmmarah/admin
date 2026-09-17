@@ -1,4 +1,4 @@
-# Review — Gadoon / GoDown Textile Mills Admin Portal
+# Review — Gadoon Textile Mills Admin Portal
 
 Summary of implemented features (frontend demo):
 
