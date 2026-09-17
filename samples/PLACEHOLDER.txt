@@ -1,0 +1,13 @@
+Place the real Excel sample files here if you want the "Download Attached Sample" button to serve them.
+
+Filenames the app will look for (in order):
+- Gate_In_Out_System.xlsx
+- Residents, Shops & Hotels Data.xlsx
+
+To use:
+1. Copy your Excel files into this folder with the exact filenames above, for example:
+	- samples/Gate_In_Out_System.xlsx
+	- samples/Residents, Shops & Hotels Data.xlsx
+2. Restart your dev server (if needed) so the static file is served.
+
+If none are present, the app will fall back to a generated demo sample when you click the button.

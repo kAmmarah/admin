@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gadoon Dashboard Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body{font-family:Inter,system-ui,Arial;background:#F3F6F9}
+      .card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 6px 18px rgba(16,24,40,0.06)}
+      .brand{color:#00A3E0}
+    </style>
+  </head>
+  <body class="min-h-screen">
+    <div class="max-w-6xl mx-auto p-6">
+      <nav class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-md bg-white flex items-center justify-center shadow">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="3" width="20" height="14" rx="2" fill="#00A3E0"/><path d="M4 9h16" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="text-lg font-bold"><span class="brand">gadoon</span> / GoDown</div>
+              <div class="text-xs text-gray-500">Textile Mills Limited</div>
+            </div>
+          </div>
+          <div class="hidden md:flex items-center gap-4 ml-6">
+            <a class="px-3 py-2 rounded bg-blue-600 text-white text-sm" href="#">Dashboard</a>
+            <a class="text-gray-600 hover:text-gray-900" href="#">Gate Entries</a>
+            <a class="text-gray-600 hover:text-gray-900" href="#">Vehicles</a>
+            <a class="text-gray-600 hover:text-gray-900" href="#">Colony</a>
+            <a class="text-gray-600 hover:text-gray-900" href="#">Reports</a>
+            <a class="text-gray-600 hover:text-gray-900" href="#">Settings</a>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <button class="px-4 py-2 bg-white border rounded text-sm">Upload Data</button>
+          <button class="px-4 py-2 bg-blue-600 text-white rounded text-sm">Upload X-Ray / Documents</button>
+          <div class="w-9 h-9 rounded-full bg-white shadow flex items-center justify-center">A</div>
+        </div>
+      </nav>
+
+      <header class="mb-6">
+        <h2 class="text-2xl font-semibold">Admin Dashboard Preview</h2>
+        <p class="text-sm text-gray-600">Real-time overview of gate activity, vehicles, colony, and rent collection</p>
+      </header>
+
+      <section class="grid grid-cols-4 gap-4 mb-6">
+        <div class="card">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500">Total Gate Entries</div>
+              <div class="text-2xl font-bold">128</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-green-600">+12 from yesterday</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500">Active Vehicles Inside</div>
+              <div class="text-2xl font-bold">14</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-yellow-600">3 arriving soon</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500">Total Colony Residents</div>
+              <div class="text-2xl font-bold">842</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-green-600">+5 new this month</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500">Rent Collected (Month)</div>
+              <div class="text-2xl font-bold">PKR 1,240,000</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-green-600">+8.2% vs last month</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-3 gap-4 mb-6">
+        <div class="card">
+          <h3 class="font-semibold mb-2">Daily Movement Trends</h3>
+          <canvas id="lineChart" height="120"></canvas>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-2">Occupancy Rate by Block</h3>
+          <canvas id="barChart" height="120"></canvas>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-2">Rent Payment Status</h3>
+          <canvas id="pieChart" height="120"></canvas>
+        </div>
+      </section>
+
+      <footer class="text-center text-sm text-gray-500">Last updated • Sep 17, 2026 • 09:32 AM • Auto-refresh enabled</footer>
+    </div>
+
+    <script>
+    const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const entries = [12,19,8,14,10,22,18];
+    const exits = [8,12,6,10,9,18,14];
+
+    new Chart(document.getElementById('lineChart').getContext('2d'), { type: 'line', data: { labels, datasets:[{label:'Entries', data:entries, borderColor:'#00A3E0', backgroundColor:'rgba(0,163,224,0.08)', tension:0.3, fill:true},{label:'Exits', data:exits, borderColor:'#1E3A8A', backgroundColor:'rgba(30,58,138,0.08)', tension:0.3, fill:true}] }, options:{ plugins:{ legend:{ display:true } }, scales:{ y:{ beginAtZero:true } } } });
+
+    new Chart(document.getElementById('barChart').getContext('2d'), { type: 'bar', data: { labels:['Block A','Block B','Block C','Block D'], datasets:[{label:'Occupancy %', data:[78,65,92,54], backgroundColor:['#00A3E0','#1E90FF','#00C2A8','#64748B']}] }, options:{ indexAxis:'y', scales:{ x:{ max:100 } }, plugins:{ legend:{ display:false } } } });
+
+    new Chart(document.getElementById('pieChart').getContext('2d'), { type: 'doughnut', data: { labels:['Paid','Pending','Overdue'], datasets:[{data:[70,20,10], backgroundColor:['#00A3E0','#FFD36E','#FF7A7A']}] }, options:{ plugins:{ legend:{ position:'bottom' } } });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "gadoon-admin-portal",
+  "version": "2.4.0",
+  "private": true,
+  "scripts": {
+    "start": "live-server --port=8080 --open=./index.html",
+    "serve": "npx http-server -p 8080",
+    "start:server": "node server/index.js",
+    "dev:server": "nodemon server/index.js"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "live-server": "^1.2.1"
+  },
+  "dependencies": {
+    "@babel/core": "^8.0.5",
+    "@babel/preset-env": "^8.0.5",
+    "@babel/preset-react": "^8.0.1"
+  }
+}

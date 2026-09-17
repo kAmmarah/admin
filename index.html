@@ -1,0 +1,1387 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gadoon / GoDown Textile Mills — Admin Portal</title>
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+      .brand-cyan { color: #00A3E0; }
+      .brand-bg { background-color: #00A3E0; }
+      .nav-bg { background-color: #0C2340; }
+      .accent-bg { background-color: #F8FAFC; }
+      .card { background: #ffffff; box-shadow: 0 1px 3px rgba(2,6,23,0.08); }
+      .clickable { cursor: pointer; }
+      a.skip-link { position: absolute; left: -999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+      a.skip-link:focus { left: 10px; top: 10px; width: auto; height: auto; padding: 8px 12px; background: #000; color: #fff; z-index: 9999; }
+      :focus { outline: none; }
+      :focus-visible { outline: 3px solid rgba(0,163,224,0.6); outline-offset: 2px; }
+      .nav-button[aria-current="page"] { background: #ffffff; color: #000; }
+    </style>
+      <!-- Local vendored libraries (fallback to CDN if unavailable) -->
+      <script src="/assets/libs/react.development.js"></script>
+      <script src="/assets/libs/react-dom.development.js"></script>
+      <script src="/assets/libs/babel.min.js"></script>
+      <script src="/assets/libs/chart.min.js"></script>
+      <script src="/assets/libs/xlsx.full.min.js"></script>
+      <script src="/assets/libs/FileSaver.min.js"></script>
+      <script src="/assets/libs/jspdf.umd.min.js"></script>
+      <script src="/assets/libs/lucide-static.min.js"></script>
+      <!-- CDN fallbacks (kept for environments without local vendored libs) -->
+      <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin="anonymous"></script>
+      <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin="anonymous"></script>
+      <script src="https://unpkg.com/babel-standalone@6/babel.min.js" crossorigin="anonymous"></script>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+      <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" crossorigin="anonymous"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+      <script src="https://unpkg.com/lucide-static@0.0.3/dist/lucide-static.min.js" crossorigin="anonymous"></script>
+  </head>
+  <body class="min-h-screen bg-gray-50">
+    <a href="#main-content" className="skip-link">Skip to content</a>
+    <div id="root">
+      <div style="padding:28px;font-family:Inter,Arial,sans-serif;">
+        <h2 style="margin-top:0">Gadoon Admin Portal (JavaScript required)</h2>
+        <p>If the app does not load, ensure you have network access for CDN scripts.</p>
+        <ul>
+          <li><a href="#" onclick="document.getElementById('hiddenUploader').click();return false;">Upload Excel file</a></li>
+          <li><a href="/samples/Gate_In_Out_System.xlsx">Download Gate sample</a></li>
+          <li><a href="/samples/Residents,%20Shops%20%26%20Hotels%20Data.xlsx">Download Residents sample</a></li>
+        </ul>
+        <p style="color:#666;font-size:13px">If you see this message but expect the React app, open your browser console (F12) and check for errors, then share them with me.</p>
+      </div>
+    </div>
+
+    <script>
+      // Global error overlay to help debugging in the preview
+      (function(){
+        function showError(msg){
+          try{
+            var root = document.getElementById('root');
+            if(!root) return;
+            root.innerHTML = '<div style="padding:20px;font-family:Inter,Arial,sans-serif;color:#b91c1c;background:#fff5f5;border-left:4px solid #ef4444;">'
+              + '<h3 style="margin:0 0 8px 0">Runtime error</h3>'
+              + '<pre style="white-space:pre-wrap;word-break:break-word">'+ (msg && msg.stack? msg.stack : msg) +'</pre>'
+              + '</div>';
+          }catch(e){ console.error('showError failed', e); }
+        }
+          window.addEventListener('error', function(e){
+            var info = e.error || (e.message ? (e.filename ? (e.message + '\n at ' + e.filename + ':' + e.lineno + ':' + e.colno) : e.message) : e);
+            showError(info);
+          });
+        window.addEventListener('unhandledrejection', function(e){ showError(e.reason || e); });
+      })();
+    </script>
+
+    <script>
+    // Shim for JSX dev runtime used by compiled output — provide minimal implementation
+    const _jsxDEV = function(type, props, key, isStaticChildren, source, self){
+      return React.createElement(type, props);
+    };
+const {
+  useState,
+  useEffect,
+  useRef
+} = React;
+const PRIMARY = '#00A3E0';
+const NAVY = '#0C2340';
+function App() {
+  const [loggedIn, setLoggedIn] = useState(sessionStorage.getItem('logged') === 'true');
+  const [module, setModule] = useState('gate'); // gate | colony
+  const [sheets, setSheets] = useState({}); // { sheetName: {columns:[], rows:[], mappedModule:''}}
+  const [originalSheets, setOriginalSheets] = useState({}); // snapshot for undo/save
+  const [dirtyRows, setDirtyRows] = useState({}); // { sheetName: {rowIndex: true} }
+  const [activeView, setActiveView] = useState('dashboard');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedSheet, setSelectedSheet] = useState(null);
+  const [charts, setCharts] = useState({});
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newEntryData, setNewEntryData] = useState({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  useEffect(() => {
+    if (!selectedSheet) {
+      const keys = Object.keys(sheets);
+      if (keys.length) setSelectedSheet(keys[0]);
+    }
+    // update charts when sheets change
+    try {
+      if (typeof updateCharts === 'function') updateCharts();
+    } catch (e) {}
+    // expose sheets to global scope for legacy non-React helpers
+    try {
+      window.sheets = sheets;
+    } catch (e) {}
+    // try to pick a logo from assets folder if logo.png missing
+    try {
+      fetch('assets/logo.png', {
+        method: 'HEAD'
+      }).then(r => {
+        if (r.ok) return; // logo exists
+        // try to find any image in assets by trying known names
+        const candidates = ['4896610e-5e55-4061-a010-a92d09c93538.jpg', 'logo.jpg', 'logo.jpeg', 'logo.svg'];
+        candidates.forEach(n => {
+          fetch('assets/' + encodeURIComponent(n), {
+            method: 'HEAD'
+          }).then(res => {
+            if (res.ok) {
+              const el = document.getElementById('appLogo');
+              if (el) el.src = 'assets/' + n;
+            }
+          }).catch(() => {});
+        });
+      }).catch(() => {});
+    } catch (e) {}
+  }, [sheets]);
+  function handleLogin(e) {
+    e.preventDefault();
+    const u = e.target.username.value;
+    const p = e.target.password.value;
+    if (u === 'admin' && p === 'admin123') {
+      sessionStorage.setItem('logged', 'true');
+      setLoggedIn(true);
+    } else {
+      alert('Invalid demo credentials — try admin / admin123');
+    }
+  }
+  function handleLogout() {
+    sessionStorage.removeItem('logged');
+    setLoggedIn(false);
+  }
+  function determineModuleFromName(name) {
+    const n = name.toLowerCase();
+    if (/gate|vehicle|visitor|contractor|truck|truck|movement|cargo|suzuki|ambulance/.test(n)) return 'gate';
+    if (/colony|resident|shop|hotel|rent|housing|block|ginning/.test(n)) return 'colony';
+    return 'gate';
+  }
+  function downloadSample() {
+    // Create a sample workbook matching both modules
+    const wb = XLSX.utils.book_new();
+    const gateSample = [['Gate Pass #', 'Date/Time In', 'Date/Time Out', 'Vehicle #', 'Driver Name', 'Purpose', 'Status'], ['G-0001', '2026-09-17 08:00', '2026-09-17 09:00', 'AB-123', 'Ali', 'Delivery', 'Gate Out']];
+    const visitors = [['Visitor Name', 'CNIC', 'Person to Visit', 'Dept', 'Entry Time', 'Exit Time'], ['Ahmed Khan', '12345-6789012-3', 'Mr. Zia', 'Admin', '2026-09-17 10:00', '2026-09-17 12:00']];
+    const colony = [['Quarter #', 'Resident Name', 'Employee ID', 'Occupancy Status'], ['Q-1', 'Raza', 'E-001', 'Occupied']];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(gateSample), 'Gate In-Out Register');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(visitors), 'Visitors Register');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(colony), 'Ginning Mill Colony');
+    const wbout = XLSX.write(wb, {
+      bookType: 'xlsx',
+      type: 'array'
+    });
+    saveAs(new Blob([wbout], {
+      type: 'application/octet-stream'
+    }), 'Gadoon_Sample_Template.xlsx');
+  }
+  function triggerUpload() {
+    const el = document.getElementById('hiddenUploader');
+    if (el) el.click();
+  }
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const data = ev.target.result;
+      const wb = XLSX.read(data, {
+        type: 'array'
+      });
+      const parsed = {};
+      wb.SheetNames.forEach(name => {
+        const ws = wb.Sheets[name];
+        const aoa = XLSX.utils.sheet_to_json(ws, {
+          header: 1
+        });
+        if (aoa.length === 0) return;
+        const cols = aoa[0].map(c => (c || '').toString());
+        const rows = aoa.slice(1).map(r => {
+          const obj = {};
+          cols.forEach((c, i) => obj[c] = r[i] ?? '');
+          return obj;
+        });
+        parsed[name] = {
+          columns: cols,
+          rows
+        };
+      });
+      // create originals and dirty maps
+      const originals = {};
+      const dirty = {};
+      Object.keys(parsed).forEach(k => {
+        originals[k] = JSON.parse(JSON.stringify(parsed[k]));
+        dirty[k] = {};
+        parsed[k].mappedModule = determineModuleFromName(k);
+      });
+      setOriginalSheets(originals);
+      setDirtyRows(dirty);
+      setSheets(parsed);
+      const first = Object.keys(parsed)[0];
+      if (first) setSelectedSheet(first);
+      setActiveView('table');
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  function handleFileDrop(e) {
+    e.preventDefault();
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0] || null;
+    if (!f) return;
+    // reuse existing handler
+    const fakeEvent = {
+      target: {
+        files: [f]
+      }
+    };
+    handleFile(fakeEvent);
+  }
+  function downloadAttachedSample() {
+    // try several known sample filenames in /samples, otherwise fall back to generated sample
+    const candidates = ['Gate_In_Out_System.xlsx', 'Residents, Shops & Hotels Data.xlsx'];
+    let tried = 0;
+    function tryNext() {
+      if (tried >= candidates.length) {
+        downloadSample();
+        alert('No attached sample found — downloaded generated sample instead. To use your provided file, place the Excel files into the samples/ folder.');
+        return;
+      }
+      const name = candidates[tried++];
+      fetch('samples/' + encodeURIComponent(name)).then(r => {
+        if (!r.ok) throw new Error('not found');
+        return r.blob();
+      }).then(b => saveAs(b, name)).catch(() => tryNext());
+    }
+    tryNext();
+  }
+  function exportFiltered() {
+    if (!selectedSheet) {
+      alert('No sheet selected');
+      return;
+    }
+    const sheet = sheets[selectedSheet];
+    const filtered = sheet.rows.filter(r => filterRow(r));
+    const aoa = [sheet.columns, ...filtered.map(r => sheet.columns.map(c => r[c]))];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), selectedSheet);
+    const wbout = XLSX.write(wb, {
+      bookType: 'xlsx',
+      type: 'array'
+    });
+    saveAs(new Blob([wbout], {
+      type: 'application/octet-stream'
+    }), selectedSheet.replace(/\s+/g, '_') + '_Export.xlsx');
+  }
+  function filterRow(r) {
+    if (search) {
+      const q = search.toLowerCase();
+      const found = Object.values(r).some(v => (v + '').toLowerCase().includes(q));
+      if (!found) return false;
+    }
+    if (statusFilter) {
+      const vals = Object.values(r).map(x => (x + '').toLowerCase());
+      if (!vals.some(v => v.includes(statusFilter.toLowerCase()))) return false;
+    }
+    return true;
+  }
+  function updateCell(sheetName, rowIndex, col, value) {
+    setSheets(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[sheetName].rows[rowIndex][col] = value;
+      return copy;
+    });
+    // mark dirty and keep original snapshot
+    setDirtyRows(prev => {
+      const copy = JSON.parse(JSON.stringify(prev || {}));
+      copy[sheetName] = copy[sheetName] || {};
+      copy[sheetName][rowIndex] = true;
+      return copy;
+    });
+  }
+  async function saveAll(sheetName) {
+    // validate all rows first
+    const rows = sheets[sheetName].rows;
+    for (let i = 0; i < rows.length; i++) {
+      const v = validateRow(sheetName, rows[i]);
+      if (!v.ok) {
+        alert(`Row ${i + 1} validation failed: ${v.msg}`);
+        return;
+      }
+    }
+    // mark originals and clear dirty for sheet
+    setOriginalSheets(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[sheetName] = JSON.parse(JSON.stringify(sheets[sheetName]));
+      return copy;
+    });
+    setDirtyRows(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[sheetName] = {};
+      return copy;
+    });
+    alert('All rows saved locally for sheet: ' + sheetName);
+    try {
+      updateCharts();
+    } catch (e) {}
+  }
+  async function saveToServer() {
+    try {
+      const payload = {
+        sheets
+      };
+      const res = await fetch('http://localhost:4000/api/sheets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      const j = await res.json();
+      if (j.ok) alert('Saved to server.');else alert('Server error: ' + (j.error || 'unknown'));
+    } catch (e) {
+      alert('Failed to save to server: ' + e.message);
+    }
+  }
+  async function loadFromServer() {
+    try {
+      const res = await fetch('http://localhost:4000/api/sheets');
+      const j = await res.json();
+      if (j.ok && j.data && j.data.sheets) {
+        setSheets(j.data.sheets);
+        setOriginalSheets(JSON.parse(JSON.stringify(j.data.sheets)));
+        const dirty = {};
+        Object.keys(j.data.sheets).forEach(k => dirty[k] = {});
+        setDirtyRows(dirty);
+        const first = Object.keys(j.data.sheets)[0];
+        if (first) setSelectedSheet(first);
+        setActiveView('table');
+      } else {
+        alert('No saved sheets on server.');
+      }
+    } catch (e) {
+      alert('Failed to load from server: ' + e.message);
+    }
+  }
+  function validateRow(sheetName, row) {
+    // Basic validations depending on sheet mapping
+    const map = sheets[sheetName]?.mappedModule || determineModuleFromName(sheetName);
+    if (map === 'gate') {
+      // require Gate Pass # or Vehicle #
+      if (!(row['Gate Pass #'] || row['Vehicle #'])) return {
+        ok: false,
+        msg: 'Require Gate Pass # or Vehicle #'
+      };
+    }
+    if (sheetName.toLowerCase().includes('rent')) {
+      // require numeric rent
+      const rentKey = Object.keys(row).find(k => /rent/i.test(k));
+      if (rentKey) {
+        const v = parseFloat((row[rentKey] || '').toString().replace(/[^0-9.\-]/g, ''));
+        if (isNaN(v)) return {
+          ok: false,
+          msg: `${rentKey} must be a numeric value`
+        };
+      }
+    }
+    return {
+      ok: true
+    };
+  }
+  function saveRow(sheetName, rowIndex) {
+    const row = sheets[sheetName].rows[rowIndex];
+    const v = validateRow(sheetName, row);
+    if (!v.ok) {
+      alert('Validation failed: ' + v.msg);
+      return;
+    }
+    // commit by updating originals and clearing dirty flag
+    setOriginalSheets(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[sheetName].rows[rowIndex] = JSON.parse(JSON.stringify(row));
+      return copy;
+    });
+    setDirtyRows(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      if (copy[sheetName]) delete copy[sheetName][rowIndex];
+      return copy;
+    });
+    try {
+      updateCharts();
+    } catch (e) {}
+  }
+  function undoRow(sheetName, rowIndex) {
+    setSheets(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[sheetName].rows[rowIndex] = JSON.parse(JSON.stringify(originalSheets[sheetName].rows[rowIndex] || {}));
+      return copy;
+    });
+    setDirtyRows(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      if (copy[sheetName]) delete copy[sheetName][rowIndex];
+      return copy;
+    });
+    try {
+      updateCharts();
+    } catch (e) {}
+  }
+  function generateKPIs() {
+    const k = {
+      totalGateToday: 0,
+      activeVehicles: 0,
+      totalResidents: 0,
+      rentCollected: 0,
+      rentOutstanding: 0
+    };
+    // Basic heuristics from sheets data
+    Object.keys(sheets).forEach(name => {
+      const s = sheets[name];
+      if (name.toLowerCase().includes('gate')) {
+        s.rows.forEach(r => {
+          k.totalGateToday += 1;
+          const status = Object.values(r).join(' ').toLowerCase();
+          if (status.includes('in')) k.activeVehicles += 1;
+        });
+      }
+      if (name.toLowerCase().includes('colony') || name.toLowerCase().includes('resident')) {
+        k.totalResidents += s.rows.length;
+      }
+      if (name.toLowerCase().includes('rent')) {
+        s.rows.forEach(r => {
+          const amount = parseFloat(Object.values(r).find(v => /\d+(\.\d+)?/.test(v)) || 0);
+          const status = Object.values(r).join(' ').toLowerCase();
+          if (status.includes('paid')) k.rentCollected += amount;else k.rentOutstanding += amount;
+        });
+      }
+    });
+    return k;
+  }
+  function downloadAnalyticsPDF() {
+    const {
+      jsPDF
+    } = window.jspdf;
+    const doc = new jsPDF();
+    const k = generateKPIs();
+    doc.setFontSize(14);
+    doc.text('Gadoon / GoDown Textile Mills — Analytics Summary', 14, 20);
+    doc.setFontSize(11);
+    doc.text(`Total Gate Entries (loaded): ${k.totalGateToday}`, 14, 36);
+    doc.text(`Active Vehicles Inside (est): ${k.activeVehicles}`, 14, 44);
+    doc.text(`Total Colony Residents (est): ${k.totalResidents}`, 14, 52);
+    doc.text(`Rent Collected: ${k.rentCollected}`, 14, 60);
+    doc.text(`Rent Outstanding: ${k.rentOutstanding}`, 14, 68);
+    // Attach canvas charts if present
+    const canvases = document.querySelectorAll('.chart-canvas');
+    let y = 80;
+    canvases.forEach((c, idx) => {
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+      }
+      try {
+        const img = c.toDataURL('image/png');
+        doc.addImage(img, 'PNG', 14, y, 180, 60);
+        y += 70;
+      } catch (e) {/*skip*/}
+    });
+    doc.save('Gadoon_Analytics_Summary.pdf');
+  }
+  if (!loggedIn) return /*#__PURE__*/_jsxDEV("div", {
+    className: "min-h-screen flex items-center justify-center",
+    children: /*#__PURE__*/_jsxDEV("div", {
+      className: "w-full max-w-md p-6 card rounded-lg",
+      children: [/*#__PURE__*/_jsxDEV("h2", {
+        className: "text-2xl font-semibold brand-cyan",
+        children: "Gadoon / GoDown Admin — Login"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("form", {
+        onSubmit: handleLogin,
+        className: "mt-4",
+        children: [/*#__PURE__*/_jsxDEV("label", {
+          className: "block text-sm",
+          children: "Username"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+          name: "username",
+          defaultValue: "admin",
+          className: "w-full p-2 border rounded mt-1"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("label", {
+          className: "block text-sm mt-3",
+          children: "Password"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+          name: "password",
+          type: "password",
+          defaultValue: "admin123",
+          className: "w-full p-2 border rounded mt-1"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          className: "flex justify-between items-center mt-4",
+          children: [/*#__PURE__*/_jsxDEV("button", {
+            type: "submit",
+            className: "px-4 py-2 rounded text-white",
+            style: {
+              background: PRIMARY
+            },
+            children: "Login"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("small", {
+            className: "text-gray-500",
+            children: "Demo: admin / admin123"
+          }, void 0, false)]
+        }, void 0, true)]
+      }, void 0, true)]
+    }, void 0, true)
+  }, void 0, false);
+  const kpis = generateKPIs();
+  return /*#__PURE__*/_jsxDEV("div", {
+    className: "min-h-screen flex",
+    children: [/*#__PURE__*/_jsxDEV("aside", {
+      className: "w-72 p-4 nav-bg text-white min-h-screen",
+      role: "navigation",
+      "aria-label": "Main sidebar",
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        className: "mb-6",
+        children: [/*#__PURE__*/_jsxDEV("h1", {
+          className: "text-2xl font-extrabold",
+          children: [/*#__PURE__*/_jsxDEV("span", {
+            className: "brand-cyan",
+            children: "gadoon"
+          }, void 0, false), " / GoDown"]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "text-xs mt-1",
+          children: "Textile Mills Limited"
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        className: "mb-4",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          className: "mb-2 text-sm",
+          children: "Module"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          className: "flex space-x-2",
+          children: [/*#__PURE__*/_jsxDEV("button", {
+            onClick: () => setModule('gate'),
+            className: `px-3 py-1 rounded ${module === 'gate' ? 'bg-white text-black' : 'bg-transparent border text-white'}`,
+            children: "Gate System"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            onClick: () => setModule('colony'),
+            className: `px-3 py-1 rounded ${module === 'colony' ? 'bg-white text-black' : 'bg-transparent border text-white'}`,
+            children: "Colony/Rent"
+          }, void 0, false)]
+        }, void 0, true)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        className: "mb-4",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          className: "mb-2 text-sm",
+          children: "Sheets"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          className: "flex flex-col space-y-1",
+          children: [Object.keys(sheets).length === 0 && /*#__PURE__*/_jsxDEV("div", {
+            className: "text-xs text-gray-300",
+            children: "No sheets loaded"
+          }, void 0, false), Object.keys(sheets).map(name => /*#__PURE__*/_jsxDEV("button", {
+            onClick: () => {
+              setSelectedSheet(name);
+              setActiveView('table');
+            },
+            className: `text-left px-2 py-1 rounded ${selectedSheet === name ? 'bg-white text-black' : ''}`,
+            children: name
+          }, name, false))]
+        }, void 0, true)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("nav", {
+        className: "space-y-2",
+        "aria-label": "Primary",
+        children: [/*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setActiveView('dashboard'),
+          "aria-current": activeView === 'dashboard' ? 'page' : undefined,
+          className: "w-full text-left nav-button",
+          children: "📊 Dashboard"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setActiveView('upload'),
+          "aria-current": activeView === 'upload' ? 'page' : undefined,
+          className: "w-full text-left nav-button",
+          children: "📤 Upload Excel"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setActiveView('table'),
+          "aria-current": activeView === 'table' ? 'page' : undefined,
+          className: "w-full text-left nav-button",
+          children: "📋 Excel Data Table"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setActiveView('analytics'),
+          "aria-current": activeView === 'analytics' ? 'page' : undefined,
+          className: "w-full text-left nav-button",
+          children: "📈 Analytics"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setActiveView('reports'),
+          "aria-current": activeView === 'reports' ? 'page' : undefined,
+          className: "w-full text-left nav-button",
+          children: "📄 Reports"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setActiveView('about'),
+          "aria-current": activeView === 'about' ? 'page' : undefined,
+          className: "w-full text-left nav-button",
+          children: "ℹ️ About"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setActiveView('settings'),
+          "aria-current": activeView === 'settings' ? 'page' : undefined,
+          className: "w-full text-left nav-button",
+          children: "⚙️ Settings"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+          onClick: handleLogout,
+          className: "w-full text-left text-red-300",
+          children: "🚪 Logout"
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        className: "mt-6 text-xs text-gray-300",
+        children: "© 2016-2026 GoDown Textile Mill. All Rights Reserved. | Version 2.4.0 (Enterprise Build)"
+      }, void 0, false)]
+    }, void 0, true), /*#__PURE__*/_jsxDEV("main", {
+      id: "main-content",
+      className: "flex-1 p-6",
+      tabIndex: 0,
+      role: "main",
+      children: [/*#__PURE__*/_jsxDEV("header", {
+        className: "flex items-center justify-between mb-6",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          className: "flex items-center gap-4",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            className: "flex items-center",
+            children: [/*#__PURE__*/_jsxDEV("img", {
+              id: "appLogo",
+              src: "assets/logo.png",
+              alt: "GoDown",
+              style: {
+                height: 36,
+                marginRight: 8
+              },
+              onError: e => e.target.style.display = 'none'
+            }, void 0, false), /*#__PURE__*/_jsxDEV("h2", {
+              className: "text-xl font-semibold",
+              children: activeView === 'dashboard' ? 'Dashboard' : activeView.charAt(0).toUpperCase() + activeView.slice(1)
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "flex items-center gap-2",
+            onDragOver: e => e.preventDefault(),
+            onDrop: handleFileDrop,
+            children: [/*#__PURE__*/_jsxDEV("button", {
+              onClick: triggerUpload,
+              className: "px-3 py-1 rounded bg-white border",
+              children: "Upload Data"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+              id: "hiddenUploader",
+              type: "file",
+              accept: ".xlsx,.xls",
+              onChange: handleFile,
+              style: {
+                display: 'none'
+              }
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              onClick: downloadAttachedSample,
+              className: "px-3 py-1 rounded bg-white border",
+              children: "Download Attached Sample"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              className: "text-xs text-gray-400",
+              children: "Or drag & drop an Excel file here"
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "flex items-center space-x-3",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            className: "text-sm",
+            children: ["Module: ", /*#__PURE__*/_jsxDEV("strong", {
+              children: module === 'gate' ? 'Gate System' : 'Colony/Rent'
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "p-2 rounded-full",
+            style: {
+              background: PRIMARY
+            }
+          }, void 0, false)]
+        }, void 0, true)]
+      }, void 0, true), Object.keys(sheets).length > 0 && /*#__PURE__*/_jsxDEV("div", {
+        className: "mb-4 flex items-center gap-2 overflow-x-auto",
+        children: Object.keys(sheets).map(name => /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => {
+            setSelectedSheet(name);
+            setActiveView('table');
+          },
+          className: `px-3 py-1 rounded ${selectedSheet === name ? 'bg-white text-black' : 'bg-transparent text-gray-700 border'}`,
+          children: name
+        }, name, false))
+      }, void 0, false), activeView === 'dashboard' && /*#__PURE__*/_jsxDEV("div", {
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          className: "grid grid-cols-4 gap-4 mb-6",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("div", {
+              className: "text-sm text-gray-500",
+              children: "Total Gate Entries"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              className: "text-2xl font-bold",
+              children: kpis.totalGateToday
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("div", {
+              className: "text-sm text-gray-500",
+              children: "Active Vehicles Inside"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              className: "text-2xl font-bold",
+              children: kpis.activeVehicles
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("div", {
+              className: "text-sm text-gray-500",
+              children: "Total Colony Residents"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              className: "text-2xl font-bold",
+              children: kpis.totalResidents
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("div", {
+              className: "text-sm text-gray-500",
+              children: "Rent Collected"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              className: "text-2xl font-bold",
+              children: kpis.rentCollected
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "grid grid-cols-3 gap-4",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("h3", {
+              className: "font-semibold mb-2",
+              children: "Daily Movement Trends"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+              id: "lineChart",
+              className: "chart-canvas"
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("h3", {
+              className: "font-semibold mb-2",
+              children: "Occupancy Rate by Block"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+              id: "barChart",
+              className: "chart-canvas"
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("h3", {
+              className: "font-semibold mb-2",
+              children: "Rent Payment Status"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+              id: "pieChart",
+              className: "chart-canvas"
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true)]
+      }, void 0, true), activeView === 'upload' && /*#__PURE__*/_jsxDEV("div", {
+        className: "card p-6 rounded",
+        children: [/*#__PURE__*/_jsxDEV("h3", {
+          className: "font-semibold mb-3",
+          children: "Upload Excel Workbook"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          className: "mb-4",
+          children: /*#__PURE__*/_jsxDEV("input", {
+            "aria-label": "Upload Excel workbook",
+            type: "file",
+            accept: ".xlsx,.xls",
+            onChange: handleFile
+          }, void 0, false)
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          className: "flex space-x-2",
+          children: /*#__PURE__*/_jsxDEV("button", {
+            onClick: downloadSample,
+            "aria-label": "Download sample excel template",
+            className: "px-3 py-2 rounded text-white",
+            style: {
+              background: PRIMARY
+            },
+            children: "Download Sample Excel Template"
+          }, void 0, false)
+        }, void 0, false)]
+      }, void 0, true), activeView === 'table' && /*#__PURE__*/_jsxDEV("div", {
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          className: "flex items-center gap-3 mb-3",
+          children: [/*#__PURE__*/_jsxDEV("label", {
+            className: "text-sm",
+            children: "Select Sheet:"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
+            "aria-label": "Select sheet",
+            value: selectedSheet || '',
+            onChange: e => setSelectedSheet(e.target.value),
+            className: "p-2 border rounded",
+            children: Object.keys(sheets).map(name => /*#__PURE__*/_jsxDEV("option", {
+              value: name,
+              children: name
+            }, name, false))
+          }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+            "aria-label": "Search across columns",
+            placeholder: "Search across columns",
+            value: search,
+            onChange: e => setSearch(e.target.value),
+            className: "p-2 border rounded flex-1"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+            "aria-label": "Status filter",
+            placeholder: "Status filter (e.g., Paid, Gate In)",
+            value: statusFilter,
+            onChange: e => setStatusFilter(e.target.value),
+            className: "p-2 border rounded"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            "aria-label": "Export filtered data to excel",
+            onClick: exportFiltered,
+            className: "px-3 py-2 rounded text-white",
+            style: {
+              background: PRIMARY
+            },
+            children: "Export Filtered Data.xlsx"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            "aria-label": "Save all rows locally",
+            onClick: () => saveAll(selectedSheet),
+            className: "px-3 py-2 rounded text-white",
+            style: {
+              background: '#16a34a'
+            },
+            children: "Save All"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            "aria-label": "Save all sheets to server (JSON only)",
+            onClick: saveToServer,
+            className: "px-3 py-2 rounded text-white",
+            style: {
+              background: NAVY
+            },
+            children: "Save JSON to Server (no Excel)"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            "aria-label": "Load sheets from server",
+            onClick: loadFromServer,
+            className: "px-3 py-2 rounded text-gray-800",
+            style: {
+              background: '#e6edf3'
+            },
+            children: "Load from Server"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            "aria-label": "Download all sheets",
+            onClick: downloadAllSheets,
+            className: "px-3 py-2 rounded text-white",
+            style: {
+              background: '#0b74c6'
+            },
+            children: "Download All Sheets"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            "aria-label": "Add new entry",
+            onClick: () => {
+              setShowNewModal(true);
+              setNewEntryData({});
+            },
+            className: "px-3 py-2 rounded text-white",
+            style: {
+              background: '#0ea5a4'
+            },
+            children: "+ Add New Entry"
+          }, void 0, false)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "mt-2 text-sm text-gray-600",
+          children: "Note: The server persists parsed sheet data as JSON only — original Excel files are not uploaded or stored on the backend."
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          className: "overflow-auto card rounded p-2",
+          children: selectedSheet && /*#__PURE__*/_jsxDEV("table", {
+            className: "min-w-full table-auto",
+            children: [/*#__PURE__*/_jsxDEV("thead", {
+              children: /*#__PURE__*/_jsxDEV("tr", {
+                children: [sheets[selectedSheet].columns.map((c, i) => /*#__PURE__*/_jsxDEV("th", {
+                  className: "text-left p-2 bg-gray-100",
+                  children: c
+                }, i, false)), /*#__PURE__*/_jsxDEV("th", {
+                  className: "text-left p-2 bg-gray-100",
+                  children: "Actions"
+                }, void 0, false)]
+              }, void 0, true)
+            }, void 0, false), /*#__PURE__*/_jsxDEV("tbody", {
+              children: (() => {
+                const allRows = sheets[selectedSheet].rows.filter(r => filterRow(r));
+                const total = allRows.length;
+                const pages = Math.max(1, Math.ceil(total / pageSize));
+                const curPage = Math.min(page, pages);
+                const start = (curPage - 1) * pageSize;
+                const paginated = allRows.slice(start, start + pageSize);
+                return paginated.map((r, idx) => {
+                  const ri = start + idx;
+                  return /*#__PURE__*/_jsxDEV("tr", {
+                    className: `border-b hover:bg-gray-50 ${dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? 'bg-yellow-50' : ''}`,
+                    children: [sheets[selectedSheet].columns.map((c, ci) => /*#__PURE__*/_jsxDEV("td", {
+                      className: "p-2",
+                      children: /*#__PURE__*/_jsxDEV("input", {
+                        "aria-label": `Edit ${c}`,
+                        className: "w-full border p-1 rounded",
+                        value: r[c],
+                        onChange: e => updateCell(selectedSheet, ri, c, e.target.value)
+                      }, void 0, false)
+                    }, ci, false)), /*#__PURE__*/_jsxDEV("td", {
+                      className: "p-2",
+                      children: dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? /*#__PURE__*/_jsxDEV("div", {
+                        className: "flex gap-2",
+                        children: [/*#__PURE__*/_jsxDEV("button", {
+                          "aria-label": `Save row ${ri + 1}`,
+                          onClick: () => saveRow(selectedSheet, ri),
+                          className: "px-2 py-1 bg-green-500 text-white rounded text-sm",
+                          children: "Save"
+                        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+                          "aria-label": `Undo row ${ri + 1}`,
+                          onClick: () => undoRow(selectedSheet, ri),
+                          className: "px-2 py-1 bg-gray-300 text-black rounded text-sm",
+                          children: "Undo"
+                        }, void 0, false)]
+                      }, void 0, true) : /*#__PURE__*/_jsxDEV("div", {
+                        className: "text-xs text-gray-500",
+                        children: "No changes"
+                      }, void 0, false)
+                    }, void 0, false)]
+                  }, ri, true);
+                });
+              })()
+            }, void 0, false)]
+          }, void 0, true)
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          className: "flex items-center justify-between mt-3",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            className: "text-sm",
+            children: ["Page ", page]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "flex items-center gap-2",
+            children: [/*#__PURE__*/_jsxDEV("button", {
+              onClick: () => setPage(p => Math.max(1, p - 1)),
+              className: "px-2 py-1 border rounded",
+              children: "Prev"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              onClick: () => setPage(p => p + 1),
+              className: "px-2 py-1 border rounded",
+              children: "Next"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
+              value: pageSize,
+              onChange: e => setPageSize(parseInt(e.target.value)),
+              className: "p-1 border rounded",
+              children: [/*#__PURE__*/_jsxDEV("option", {
+                value: 5,
+                children: "5"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
+                value: 10,
+                children: "10"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
+                value: 25,
+                children: "25"
+              }, void 0, false)]
+            }, void 0, true)]
+          }, void 0, true)]
+        }, void 0, true), showNewModal && selectedSheet && /*#__PURE__*/_jsxDEV("div", {
+          className: "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center",
+          children: /*#__PURE__*/_jsxDEV("div", {
+            className: "bg-white rounded-lg w-2/3 p-6",
+            children: [/*#__PURE__*/_jsxDEV("h3", {
+              className: "text-lg font-semibold mb-3",
+              children: ["Add New Entry — ", selectedSheet]
+            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+              className: "grid grid-cols-2 gap-3 max-h-72 overflow-auto mb-4",
+              children: sheets[selectedSheet].columns.map((col, ci) => /*#__PURE__*/_jsxDEV("div", {
+                children: [/*#__PURE__*/_jsxDEV("label", {
+                  className: "text-sm text-gray-600",
+                  children: col
+                }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+                  className: "w-full border p-2 rounded mt-1",
+                  value: newEntryData[col] || '',
+                  onChange: e => setNewEntryData(prev => ({
+                    ...prev,
+                    [col]: e.target.value
+                  }))
+                }, void 0, false)]
+              }, ci, true))
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              className: "flex justify-end gap-2",
+              children: [/*#__PURE__*/_jsxDEV("button", {
+                className: "px-3 py-2 border rounded",
+                onClick: () => setShowNewModal(false),
+                children: "Cancel"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+                className: "px-3 py-2 bg-blue-600 text-white rounded",
+                onClick: () => {
+                  setSheets(prev => {
+                    const copy = JSON.parse(JSON.stringify(prev));
+                    copy[selectedSheet].rows.push(Object.fromEntries(sheets[selectedSheet].columns.map(c => [c, newEntryData[c] || ''])));
+                    const newIndex = copy[selectedSheet].rows.length - 1;
+                    setDirtyRows(drPrev => {
+                      const copyDr = JSON.parse(JSON.stringify(drPrev || {}));
+                      copyDr[selectedSheet] = copyDr[selectedSheet] || {};
+                      copyDr[selectedSheet][newIndex] = true;
+                      return copyDr;
+                    });
+                    return copy;
+                  });
+                  setShowNewModal(false);
+                  // update charts after DOM settles
+                  setTimeout(() => {
+                    try {
+                      updateCharts();
+                    } catch (e) {}
+                  }, 200);
+                },
+                children: "Add Entry"
+              }, void 0, false)]
+            }, void 0, true)]
+          }, void 0, true)
+        }, void 0, false)]
+      }, void 0, true), activeView === 'analytics' && /*#__PURE__*/_jsxDEV("div", {
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          className: "flex gap-3 mb-4",
+          children: [/*#__PURE__*/_jsxDEV("button", {
+            onClick: () => {
+              renderCharts();
+            },
+            className: "px-3 py-2 rounded",
+            style: {
+              background: PRIMARY,
+              color: '#fff'
+            },
+            children: "Refresh Charts"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            onClick: downloadAnalyticsPDF,
+            className: "px-3 py-2 rounded",
+            style: {
+              background: NAVY,
+              color: '#fff'
+            },
+            children: "Download Analytics Summary Report (PDF)"
+          }, void 0, false)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "grid grid-cols-3 gap-4",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("h3", {
+              className: "font-semibold mb-2",
+              children: "Daily Movement Trends"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+              id: "lineChart2",
+              className: "chart-canvas"
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("h3", {
+              className: "font-semibold mb-2",
+              children: "Occupancy Rate by Block"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+              id: "barChart2",
+              className: "chart-canvas"
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "p-4 card rounded",
+            children: [/*#__PURE__*/_jsxDEV("h3", {
+              className: "font-semibold mb-2",
+              children: "Rent Payment Status Breakdown"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+              id: "pieChart2",
+              className: "chart-canvas"
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true)]
+      }, void 0, true), activeView === 'reports' && /*#__PURE__*/_jsxDEV("div", {
+        className: "card p-4 rounded",
+        children: [/*#__PURE__*/_jsxDEV("h3", {
+          className: "font-semibold",
+          children: "Reports & Exports"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          className: "mt-3",
+          children: /*#__PURE__*/_jsxDEV("button", {
+            onClick: downloadAnalyticsPDF,
+            className: "px-3 py-2 rounded text-white",
+            style: {
+              background: NAVY
+            },
+            children: "Download Analytics Summary PDF"
+          }, void 0, false)
+        }, void 0, false)]
+      }, void 0, true), activeView === 'about' && /*#__PURE__*/_jsxDEV("div", {
+        className: "card p-4 rounded",
+        children: [/*#__PURE__*/_jsxDEV("h3", {
+          className: "font-semibold",
+          children: "About — B2B Executive Insights"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+          className: "mt-2 text-sm text-gray-700",
+          children: "Automated Gate Pass and Housing/Rent tracking optimizes mill supply chain throughput, enhances security compliance, and improves estate revenue management. This portal centralizes operational registers, enables quick analytics, and offers exportable reports for stakeholders."
+        }, void 0, false)]
+      }, void 0, true), activeView === 'settings' && /*#__PURE__*/_jsxDEV("div", {
+        className: "card p-4 rounded",
+        children: [/*#__PURE__*/_jsxDEV("h3", {
+          className: "font-semibold",
+          children: "Settings"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+          className: "text-sm mt-2",
+          children: ["Theme and preferences (demo). Primary color: ", /*#__PURE__*/_jsxDEV("span", {
+            style: {
+              color: PRIMARY
+            },
+            children: PRIMARY
+          }, void 0, false)]
+        }, void 0, true)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("footer", {
+        className: "mt-6 text-sm text-gray-500",
+        children: "© 2016-2026 GoDown Textile Mill. All Rights Reserved. | Version 2.4.0 (Enterprise Build)"
+      }, void 0, false)]
+    }, void 0, true)]
+  }, void 0, true);
+}
+
+// Chart rendering using simple heuristics
+function renderCharts() {
+  // fallback: render demo charts
+  const line = document.getElementById('lineChart') || document.getElementById('lineChart2');
+  const bar = document.getElementById('barChart') || document.getElementById('barChart2');
+  const pie = document.getElementById('pieChart') || document.getElementById('pieChart2');
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const entries = [12, 19, 8, 14, 10, 22, 18];
+  const exits = [8, 12, 6, 10, 9, 18, 14];
+  try {
+    if (window._lineChart) window._lineChart.destroy();
+  } catch (e) {}
+  if (line) {
+    window._lineChart = new Chart(line.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Entries',
+          data: entries,
+          borderColor: PRIMARY,
+          backgroundColor: 'rgba(0,163,224,0.08)',
+          fill: true
+        }, {
+          label: 'Exits',
+          data: exits,
+          borderColor: NAVY,
+          backgroundColor: 'rgba(12,35,64,0.06)',
+          fill: true
+        }]
+      }
+    });
+  }
+  try {
+    if (window._barChart) window._barChart.destroy();
+  } catch (e) {}
+  if (bar) {
+    window._barChart = new Chart(bar.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Block A', 'Block B', 'Block C'],
+        datasets: [{
+          label: 'Occupancy %',
+          data: [78, 65, 92],
+          backgroundColor: [PRIMARY, '#1E90FF', '#00C2A8']
+        }]
+      }
+    });
+  }
+  try {
+    if (window._pieChart) window._pieChart.destroy();
+  } catch (e) {}
+  if (pie) {
+    window._pieChart = new Chart(pie.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Paid', 'Pending', 'Overdue'],
+        datasets: [{
+          data: [60, 25, 15],
+          backgroundColor: [PRIMARY, '#FFD36E', '#FF7A7A']
+        }]
+      }
+    });
+  }
+}
+function renderChartsFromData({
+  daily = {},
+  occupancy = {},
+  rentStatus = {}
+}) {
+  try {
+    const lineEl = document.getElementById('lineChart') || document.getElementById('lineChart2');
+    if (lineEl) {
+      try {
+        if (window._lineChart) window._lineChart.destroy();
+      } catch (e) {}
+      const labels = Object.keys(daily).sort();
+      const ins = labels.map(d => daily[d].in || 0);
+      const outs = labels.map(d => daily[d].out || 0);
+      window._lineChart = new Chart(lineEl.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Entries',
+            data: ins,
+            borderColor: PRIMARY,
+            backgroundColor: 'rgba(0,163,224,0.08)',
+            fill: true
+          }, {
+            label: 'Exits',
+            data: outs,
+            borderColor: NAVY,
+            backgroundColor: 'rgba(12,35,64,0.06)',
+            fill: true
+          }]
+        }
+      });
+    }
+    const barEl = document.getElementById('barChart') || document.getElementById('barChart2');
+    if (barEl) {
+      try {
+        if (window._barChart) window._barChart.destroy();
+      } catch (e) {}
+      const bLabels = Object.keys(occupancy);
+      const bVals = bLabels.map(l => occupancy[l] || 0);
+      window._barChart = new Chart(barEl.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: bLabels,
+          datasets: [{
+            label: 'Occupancy',
+            data: bVals,
+            backgroundColor: bLabels.map((_, i) => i % 2 ? PRIMARY : '#1E90FF')
+          }]
+        },
+        options: {
+          indexAxis: 'y'
+        }
+      });
+    }
+    const pieEl = document.getElementById('pieChart') || document.getElementById('pieChart2');
+    if (pieEl) {
+      try {
+        if (window._pieChart) window._pieChart.destroy();
+      } catch (e) {}
+      const pVals = [rentStatus.Paid || 0, rentStatus.Pending || 0, rentStatus.Overdue || 0];
+      window._pieChart = new Chart(pieEl.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Paid', 'Pending', 'Overdue'],
+          datasets: [{
+            data: pVals,
+            backgroundColor: [PRIMARY, '#FFD36E', '#FF7A7A']
+          }]
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('renderChartsFromData error', e);
+  }
+}
+function updateCharts() {
+  const daily = {};
+  const occupancy = {};
+  const rentStatus = {
+    Paid: 0,
+    Pending: 0,
+    Overdue: 0
+  };
+  Object.keys(sheets).forEach(name => {
+    const s = sheets[name];
+    const lower = name.toLowerCase();
+    s.rows.forEach(r => {
+      // dates
+      const din = r['Date/Time In'] || r['Date Time In'] || r['Entry Time'] || r['EntryDate'] || '';
+      const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Exit Time'] || '';
+      if (din) {
+        const d = ('' + din).split(' ')[0];
+        daily[d] = daily[d] || {
+          in: 0,
+          out: 0
+        };
+        daily[d].in += 1;
+      }
+      if (dout) {
+        const d = ('' + dout).split(' ')[0];
+        daily[d] = daily[d] || {
+          in: 0,
+          out: 0
+        };
+        daily[d].out += 1;
+      }
+      // occupancy blocks
+      const block = r['Block'] || r['Quarter #'] || r['Block #'] || r['Block Name'] || '';
+      if (block) occupancy[block] = (occupancy[block] || 0) + 1;
+      // rent parsing
+      Object.values(r).forEach(v => {
+        const sVal = ('' + v).toLowerCase();
+        const m = ('' + v).match(/\d+[\d,]*/);
+        if (m) {
+          const amt = parseFloat(m[0].replace(/,/g, ''));
+          if (!isNaN(amt)) {
+            if (sVal.includes('paid')) rentStatus.Paid += amt;else if (sVal.includes('overdue') || sVal.includes('due')) rentStatus.Overdue += amt;else rentStatus.Pending += amt;
+          }
+        }
+      });
+    });
+  });
+  renderChartsFromData({
+    daily,
+    occupancy,
+    rentStatus
+  });
+}
+
+// Recompute charts when sheets change
+setTimeout(() => updateCharts(), 800);
+function downloadAllSheets() {
+  try {
+    const wb = XLSX.utils.book_new();
+    Object.keys(sheets).forEach(name => {
+      const s = sheets[name];
+      const aoa = [s.columns, ...s.rows.map(r => s.columns.map(c => r[c]))];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name);
+    });
+    const wbout = XLSX.write(wb, {
+      bookType: 'xlsx',
+      type: 'array'
+    });
+    saveAs(new Blob([wbout], {
+      type: 'application/octet-stream'
+    }), 'GoDown_Textile_Mills_Data_Export.xlsx');
+  } catch (e) {
+    alert('Export failed: ' + e.message);
+  }
+}
+
+// Render app
+try {
+  ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/_jsxDEV(App, {}, void 0, false));
+} catch (e) {
+  console.error('App render failed', e);
+  try {
+    (function () {
+      var root = document.getElementById('root');
+      if (root) {
+        root.innerHTML = '';
+        var container = document.createElement('div');
+        container.style.padding = '20px';
+        container.style.fontFamily = 'Inter,Arial,sans-serif';
+        container.style.color = '#b91c1c';
+        container.style.background = '#fff5f5';
+        container.style.borderLeft = '4px solid #ef4444';
+        var h3 = document.createElement('h3');
+        h3.style.margin = '0 0 8px 0';
+        h3.textContent = 'Render error';
+        var pre = document.createElement('pre');
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.wordBreak = 'break-word';
+        pre.textContent = e && e.stack ? e.stack : '' + e;
+        container.appendChild(h3);
+        container.appendChild(pre);
+        root.appendChild(container);
+      }
+    })();
+  } catch (err) {}
+}
+// Initial charts
+setTimeout(() => {
+  try {
+    renderCharts();
+  } catch (e) {
+    console.warn(e);
+  }
+}, 600);
+</script>
+  </body>
+</html>
