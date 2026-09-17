@@ -45,7 +45,6 @@
       <script src="/assets/libs/xlsx.full.min.js"></script>
       <script src="/assets/libs/FileSaver.min.js"></script>
       <script src="/assets/libs/jspdf.umd.min.js"></script>
-      <script src="/assets/libs/lucide-static.min.js"></script>
       <!-- CDN fallbacks (kept for environments without local vendored libs) -->
       <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin="anonymous"></script>
       <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin="anonymous"></script>
@@ -54,7 +53,6 @@
       <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" crossorigin="anonymous"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
-      <script src="https://unpkg.com/lucide-static@0.0.3/dist/lucide-static.min.js" crossorigin="anonymous"></script>
   </head>
   <body class="min-h-screen bg-gray-50">
     <a href="#main-content" className="skip-link">Skip to content</a>
@@ -95,7 +93,11 @@
     <script>
     // Shim for JSX dev runtime used by compiled output — provide minimal implementation
     const _jsxDEV = function(type, props, key, isStaticChildren, source, self){
-      return React.createElement(type, props);
+      const elementProps = props || {};
+      if (key !== undefined && key !== null) {
+        elementProps.key = key;
+      }
+      return React.createElement(type, elementProps);
     };
 const {
   useState,
@@ -125,35 +127,18 @@ function App() {
       const keys = Object.keys(sheets);
       if (keys.length) setSelectedSheet(keys[0]);
     }
-    // update charts when sheets change
     try {
       if (typeof updateCharts === 'function') updateCharts();
     } catch (e) {}
-    // expose sheets to global scope for legacy non-React helpers
     try {
       window.sheets = sheets;
     } catch (e) {}
-    // try to pick a logo from assets folder if logo.png missing
-    try {
-      fetch('assets/logo.png', {
-        method: 'HEAD'
-      }).then(r => {
-        if (r.ok) return; // logo exists
-        // try to find any image in assets by trying known names
-        const candidates = ['4896610e-5e55-4061-a010-a92d09c93538.jpg', 'logo.jpg', 'logo.jpeg', 'logo.svg'];
-        candidates.forEach(n => {
-          fetch('assets/' + encodeURIComponent(n), {
-            method: 'HEAD'
-          }).then(res => {
-            if (res.ok) {
-              const el = document.getElementById('appLogo');
-              if (el) el.src = 'assets/' + n;
-            }
-          }).catch(() => {});
-        });
-      }).catch(() => {});
-    } catch (e) {}
-  }, [sheets]);
+  }, [sheets, module]);
+  useEffect(() => {
+    if (loggedIn && Object.keys(sheets).length === 0) {
+      loadBuiltInExcelData();
+    }
+  }, [loggedIn]);
   function handleLogin(e) {
     e.preventDefault();
     const u = e.target.username.value;
@@ -196,6 +181,94 @@ function App() {
     const el = document.getElementById('hiddenUploader');
     if (el) el.click();
   }
+  function normalizeHeaderKey(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ').replace(/[^a-zA-Z0-9\s]/g, ' ').toLowerCase();
+  }
+  function findHeaderRowIndex(rows) {
+    let bestIndex = 0;
+    let bestScore = -1;
+    rows.forEach((row, index) => {
+      const clean = (row || []).filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+      if (clean.length < 3) return;
+      let score = 0;
+      clean.forEach(cell => {
+        const text = normalizeHeaderKey(cell);
+        if (!text) return;
+        if (/(gate pass|movement|in time|out time|pass status|date|vehicle no|visitor name|contractor|quarter no|name|designation|no of persons|shop|hotel|rent)/.test(text)) score += 3;
+        if (/(gate pass no|date|movement|vehicle no|in time|out time|pass status|quarter no|no of persons|shop\/hotel name|total workers|active workers|rent)/.test(text)) score += 2;
+      });
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    });
+    return bestIndex;
+  }
+  function parseWorkbookToSheets(wb) {
+    const parsed = {};
+    wb.SheetNames.forEach(name => {
+      const ws = wb.Sheets[name];
+      const aoa = XLSX.utils.sheet_to_json(ws, {
+        header: 1,
+        blankrows: false
+      });
+      if (!aoa || aoa.length === 0) return;
+      const headerIndex = findHeaderRowIndex(aoa);
+      const headerRow = aoa[headerIndex] || [];
+      const cols = headerRow.map((c, idx) => {
+        const value = (c === null || c === undefined) ? '' : String(c).trim();
+        return value || `Column_${idx + 1}`;
+      }).filter((c, idx, arr) => {
+        if (!c || c === 'Column_') return false;
+        return true;
+      });
+      const rows = aoa.slice(headerIndex + 1).map(r => {
+        const obj = {};
+        cols.forEach((c, i) => obj[c] = (r && r[i] !== undefined) ? r[i] : '');
+        return obj;
+      }).filter(row => Object.values(row).some(v => v !== '' && v !== null && v !== undefined));
+      if (!cols.length) return;
+      parsed[name] = {
+        columns: cols,
+        rows,
+        mappedModule: determineModuleFromName(name)
+      };
+    });
+    return parsed;
+  }
+  async function loadBuiltInExcelData() {
+    const fileMap = {
+      gate: 'Gate_In_Out_System.xlsx',
+      colony: 'Residents,%20Shops%20%26%20Hotels%20Data.xlsx'
+    };
+    const loaded = {};
+    for (const [moduleName, fileName] of Object.entries(fileMap)) {
+      try {
+        const response = await fetch(fileName, {
+          cache: 'no-store'
+        });
+        if (!response.ok) continue;
+        const buffer = await response.arrayBuffer();
+        const workbook = XLSX.read(buffer, {
+          type: 'array'
+        });
+        const parsed = parseWorkbookToSheets(workbook);
+        Object.assign(loaded, parsed);
+      } catch (e) {
+        console.warn('Built-in Excel data failed for', moduleName, e);
+      }
+    }
+    if (Object.keys(loaded).length) {
+      setOriginalSheets(JSON.parse(JSON.stringify(loaded)));
+      const dirty = {};
+      Object.keys(loaded).forEach(k => dirty[k] = {});
+      setDirtyRows(dirty);
+      setSheets(loaded);
+      const first = Object.keys(loaded)[0];
+      if (first) setSelectedSheet(first);
+      setActiveView('dashboard');
+    }
+  }
   function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -205,24 +278,7 @@ function App() {
       const wb = XLSX.read(data, {
         type: 'array'
       });
-      const parsed = {};
-      wb.SheetNames.forEach(name => {
-        const ws = wb.Sheets[name];
-        const aoa = XLSX.utils.sheet_to_json(ws, {
-          header: 1
-        });
-        if (aoa.length === 0) return;
-        const cols = aoa[0].map(c => (c || '').toString());
-        const rows = aoa.slice(1).map(r => {
-          const obj = {};
-          cols.forEach((c, i) => obj[c] = r[i] ?? '');
-          return obj;
-        });
-        parsed[name] = {
-          columns: cols,
-          rows
-        };
-      });
+      const parsed = parseWorkbookToSheets(wb);
       // create originals and dirty maps
       const originals = {};
       const dirty = {};
@@ -440,6 +496,30 @@ function App() {
       updateCharts();
     } catch (e) {}
   }
+  function extractNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    const text = String(value).replace(/[^0-9.\-]/g, '');
+    const parsed = parseFloat(text);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  function getModuleRows(moduleName = module) {
+    const moduleKey = moduleName || module;
+    const gateNames = ['gate', 'visitor', 'contractor', 'repair', 'suzuki', 'truck', 'daily', 'movement'];
+    const colonyNames = ['colony', 'resident', 'family', 'block', 'shop', 'hotel', 'rent', 'quarter'];
+    return Object.entries(sheets).filter(([name]) => {
+      const n = (name || '').toLowerCase();
+      if (moduleKey === 'gate') return gateNames.some(token => n.includes(token));
+      return colonyNames.some(token => n.includes(token));
+    });
+  }
+  function getCellValue(row, aliases) {
+    for (const key of aliases) {
+      if (row && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+        return row[key];
+      }
+    }
+    return '';
+  }
   function generateKPIs() {
     const k = {
       totalGateToday: 0,
@@ -448,24 +528,46 @@ function App() {
       rentCollected: 0,
       rentOutstanding: 0
     };
-    // Basic heuristics from sheets data
-    Object.keys(sheets).forEach(name => {
-      const s = sheets[name];
-      if (name.toLowerCase().includes('gate')) {
-        s.rows.forEach(r => {
-          k.totalGateToday += 1;
-          const status = Object.values(r).join(' ').toLowerCase();
-          if (status.includes('in')) k.activeVehicles += 1;
+    Object.entries(sheets).forEach(([name, sheet]) => {
+      const tn = (name || '').toLowerCase();
+      const isGate = /gate|visitor|contractor|repair|suzuki|truck|daily/.test(tn);
+      const isColony = /colony|resident|family|block|shop|hotel|quarter/.test(tn);
+      if (isGate && !/instruction/.test(tn) && !/summary/.test(tn)) {
+        sheet.rows.forEach(r => {
+          const rowText = Object.values(r).join(' ').toLowerCase();
+          if (rowText && !rowText.includes('instruction') && !rowText.includes('summary')) {
+            k.totalGateToday += 1;
+          }
+          const inTime = getCellValue(r, ['In Time', 'Entry Time', 'Date/Time In', 'Date Time In', 'Time of Entry', 'Date']);
+          const outTime = getCellValue(r, ['Out Time', 'Exit Time', 'Date/Time Out', 'Date Time Out', 'Time of Exit']);
+          const movement = String(getCellValue(r, ['Movement']) || '').toLowerCase();
+          const status = String(getCellValue(r, ['Pass Status', 'Vehicle/Person Status']) || '').toLowerCase();
+          if ((inTime && !outTime) || (/in/.test(movement) && !/out/.test(movement) && !/out/.test(status))) {
+            k.activeVehicles += 1;
+          }
         });
       }
-      if (name.toLowerCase().includes('colony') || name.toLowerCase().includes('resident')) {
-        k.totalResidents += s.rows.length;
+      if (isColony || /rent/.test(tn)) {
+        sheet.rows.forEach(r => {
+          const personCount = extractNumber(getCellValue(r, ['No of Persons', 'No. of Persons', 'Total Persons', 'Total Workers', 'No Of Persons']));
+          if (personCount) k.totalResidents += personCount;
+          const rentValue = extractNumber(getCellValue(r, ['Rent', 'Rent Amount', 'Amount', 'Monthly Rent', 'Rent Detail']));
+          if (rentValue) {
+            const rowText = Object.values(r).join(' ').toLowerCase();
+            if (rowText.includes('paid') || rowText.includes('settled') || rowText.includes('collected')) {
+              k.rentCollected += rentValue;
+            } else {
+              k.rentOutstanding += rentValue;
+            }
+          }
+        });
       }
-      if (name.toLowerCase().includes('rent')) {
-        s.rows.forEach(r => {
-          const amount = parseFloat(Object.values(r).find(v => /\d+(\.\d+)?/.test(v)) || 0);
-          const status = Object.values(r).join(' ').toLowerCase();
-          if (status.includes('paid')) k.rentCollected += amount;else k.rentOutstanding += amount;
+      if (/rent detail/.test(tn)) {
+        sheet.rows.forEach(r => {
+          const rentValue = extractNumber(getCellValue(r, ['Rent', 'Amount']));
+          if (!rentValue) return;
+          k.rentCollected += rentValue;
+          k.rentOutstanding += 0;
         });
       }
     });
@@ -506,29 +608,37 @@ function App() {
     children: /*#__PURE__*/_jsxDEV("div", {
       className: "w-full max-w-md p-6 card rounded-lg",
       children: [/*#__PURE__*/_jsxDEV("h2", {
+        key: "login-title",
         className: "text-2xl font-semibold brand-cyan",
         children: "Gadoon Textile Mills Limited — Login"
       }, void 0, false), /*#__PURE__*/_jsxDEV("form", {
+        key: "login-form",
         onSubmit: handleLogin,
         className: "mt-4",
         children: [/*#__PURE__*/_jsxDEV("label", {
+          key: "username-label",
           className: "block text-sm",
           children: "Username"
         }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+          key: "username-input",
           name: "username",
           defaultValue: "admin",
           className: "w-full p-2 border rounded mt-1"
         }, void 0, false), /*#__PURE__*/_jsxDEV("label", {
+          key: "password-label",
           className: "block text-sm mt-3",
           children: "Password"
         }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+          key: "password-input",
           name: "password",
           type: "password",
           defaultValue: "admin123",
           className: "w-full p-2 border rounded mt-1"
         }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          key: "login-actions",
           className: "flex justify-between items-center mt-4",
           children: [/*#__PURE__*/_jsxDEV("button", {
+            key: "login-submit",
             type: "submit",
             className: "px-4 py-2 rounded text-white",
             style: {
@@ -536,6 +646,7 @@ function App() {
             },
             children: "Login"
           }, void 0, false), /*#__PURE__*/_jsxDEV("small", {
+            key: "login-demo",
             className: "text-gray-500",
             children: "Demo: admin / admin123"
           }, void 0, false)]
@@ -544,775 +655,1100 @@ function App() {
     }, void 0, true)
   }, void 0, false);
   const kpis = generateKPIs();
-  const dashboardView = /*#__PURE__*/_jsxDEV("div", {
-    className: "min-h-screen bg-[#edf3f8] p-0",
-    children: /*#__PURE__*/_jsxDEV("div", {
-      className: "mx-auto flex h-screen max-w-[1500px] overflow-hidden bg-[#f6f7fb] shadow-[0_20px_50px_rgba(15,23,42,0.12)]",
-      children: [/*#__PURE__*/_jsxDEV("aside", {
-        className: "w-[320px] bg-[#081d3a] px-5 py-6 text-white",
-        children: [/*#__PURE__*/_jsxDEV("div", {
-          className: "mb-7 flex items-center gap-3 px-2",
+
+  function renderCharts() {
+    const daily = {};
+    const occupancy = {};
+    const rentStatus = { Paid: 0, Pending: 0, Overdue: 0 };
+    const activeRows = getModuleRows(module);
+    const useGateData = module === 'gate';
+    activeRows.forEach(([name, s]) => {
+      s.rows.forEach(r => {
+        const din = r['Date/Time In'] || r['Date Time In'] || r['In Time'] || r['Entry Time'] || r['Date'] || '';
+        const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Out Time'] || r['Exit Time'] || '';
+        if (din) {
+          const d = ('' + din).split(' ')[0];
+          daily[d] = daily[d] || { in: 0, out: 0 };
+          daily[d].in += 1;
+        }
+        if (dout) {
+          const d = ('' + dout).split(' ')[0];
+          daily[d] = daily[d] || { in: 0, out: 0 };
+          daily[d].out += 1;
+        }
+        const block = r['Block'] || r['Quarter #'] || r['Block #'] || r['Block Name'] || r['Department / Host'] || r['Department'] || r['Category'] || r['Vehicle Type'] || r['Vehicle No.'] || r['Host Department'] || r['Company / Organization'] || '';
+        if (block) occupancy[block] = (occupancy[block] || 0) + 1;
+        const rowText = Object.values(r).join(' ').toLowerCase();
+        const rentValue = extractNumber(r['Rent'] || r['Rent Amount'] || r['Amount'] || 0);
+        if (useGateData) {
+          if (rowText.includes('paid')) rentStatus.Paid += 1;else if (rowText.includes('overdue') || rowText.includes('due')) rentStatus.Overdue += 1;else if (rowText.includes('pending') || rowText.includes('status')) rentStatus.Pending += 1;
+        } else if (rentValue) {
+          if (rowText.includes('paid') || rowText.includes('settled')) rentStatus.Paid += rentValue;else if (rowText.includes('overdue') || rowText.includes('due')) rentStatus.Overdue += rentValue;else rentStatus.Pending += rentValue;
+        }
+      });
+    });
+    if (module !== 'gate' && Object.keys(occupancy).length === 0) {
+      Object.keys(sheets).forEach(name => {
+        const s = sheets[name];
+        s.rows.forEach(r => {
+          const block = r['Quarter No.'] || r['Quarter #'] || r['Room'] || r['Shop / Hotel Name'] || r['Company / Organization'] || '';
+          if (block) occupancy[block] = (occupancy[block] || 0) + 1;
+        });
+      });
+    }
+    renderChartsFromData({ daily, occupancy, rentStatus });
+  }
+  function renderChartsFromData({ daily = {}, occupancy = {}, rentStatus = {} }) {
+    try {
+      const lineEl = document.getElementById('lineChart') || document.getElementById('lineChart2');
+      if (lineEl) {
+        try { if (window._lineChart) window._lineChart.destroy(); } catch (e) {}
+        const labels = Object.keys(daily).sort();
+        const ins = labels.map(d => daily[d].in || 0);
+        const outs = labels.map(d => daily[d].out || 0);
+        window._lineChart = new Chart(lineEl.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Entries',
+              data: ins,
+              borderColor: PRIMARY,
+              backgroundColor: 'rgba(0,163,224,0.08)',
+              fill: true
+            }, {
+              label: 'Exits',
+              data: outs,
+              borderColor: NAVY,
+              backgroundColor: 'rgba(12,35,64,0.06)',
+              fill: true
+            }]
+          }
+        });
+      }
+      const barEl = document.getElementById('barChart') || document.getElementById('barChart2');
+      if (barEl) {
+        try { if (window._barChart) window._barChart.destroy(); } catch (e) {}
+        const bLabels = Object.keys(occupancy);
+        const bVals = bLabels.map(l => occupancy[l] || 0);
+        window._barChart = new Chart(barEl.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: bLabels,
+            datasets: [{
+              label: 'Occupancy',
+              data: bVals,
+              backgroundColor: bLabels.map((_, i) => i % 2 ? PRIMARY : '#1E90FF')
+            }]
+          },
+          options: { indexAxis: 'y' }
+        });
+      }
+      const pieEl = document.getElementById('pieChart') || document.getElementById('pieChart2');
+      if (pieEl) {
+        try { if (window._pieChart) window._pieChart.destroy(); } catch (e) {}
+        const pVals = [rentStatus.Paid || 0, rentStatus.Pending || 0, rentStatus.Overdue || 0];
+        window._pieChart = new Chart(pieEl.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Paid', 'Pending', 'Overdue'],
+            datasets: [{
+              data: pVals,
+              backgroundColor: [PRIMARY, '#FFD36E', '#FF7A7A']
+            }]
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('renderChartsFromData error', e);
+    }
+  }
+  function updateCharts() {
+    const daily = {};
+    const occupancy = {};
+    const rentStatus = { Paid: 0, Pending: 0, Overdue: 0 };
+    const activeRows = getModuleRows(module);
+    const useGateData = module === 'gate';
+    if (activeRows.length) {
+      activeRows.forEach(([name, s]) => {
+        s.rows.forEach(r => {
+          const din = r['Date/Time In'] || r['Date Time In'] || r['In Time'] || r['Entry Time'] || r['Date'] || '';
+          const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Out Time'] || r['Exit Time'] || '';
+          if (din) {
+            const d = ('' + din).split(' ')[0];
+            daily[d] = daily[d] || { in: 0, out: 0 };
+            daily[d].in += 1;
+          }
+          if (dout) {
+            const d = ('' + dout).split(' ')[0];
+            daily[d] = daily[d] || { in: 0, out: 0 };
+            daily[d].out += 1;
+          }
+          const block = r['Block'] || r['Quarter #'] || r['Block #'] || r['Block Name'] || r['Department / Host'] || r['Department'] || r['Category'] || r['Vehicle Type'] || r['Vehicle No.'] || r['Host Department'] || r['Company / Organization'] || '';
+          if (block) occupancy[block] = (occupancy[block] || 0) + 1;
+          const rowText = Object.values(r).join(' ').toLowerCase();
+          const rentValue = extractNumber(r['Rent'] || r['Rent Amount'] || r['Amount'] || 0);
+          if (useGateData) {
+            if (rowText.includes('paid')) rentStatus.Paid += 1;else if (rowText.includes('overdue') || rowText.includes('due')) rentStatus.Overdue += 1;else if (rowText.includes('pending') || rowText.includes('status')) rentStatus.Pending += 1;
+          } else if (rentValue) {
+            if (rowText.includes('paid') || rowText.includes('settled')) rentStatus.Paid += rentValue;else if (rowText.includes('overdue') || rowText.includes('due')) rentStatus.Overdue += rentValue;else rentStatus.Pending += rentValue;
+          }
+        });
+      });
+    }
+    if (!Object.keys(daily).length && Object.keys(sheets).length) {
+      Object.keys(sheets).forEach(name => {
+        const s = sheets[name];
+        s.rows.forEach(r => {
+          const din = r['Date/Time In'] || r['Date Time In'] || r['In Time'] || r['Entry Time'] || r['Date'] || '';
+          const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Out Time'] || r['Exit Time'] || '';
+          if (din) {
+            const d = ('' + din).split(' ')[0];
+            daily[d] = daily[d] || { in: 0, out: 0 };
+            daily[d].in += 1;
+          }
+          if (dout) {
+            const d = ('' + dout).split(' ')[0];
+            daily[d] = daily[d] || { in: 0, out: 0 };
+            daily[d].out += 1;
+          }
+        });
+      });
+    }
+    renderChartsFromData({ daily, occupancy, rentStatus });
+  }
+
+  function renderAppShell({ title, actions, content }) {
+    return /*#__PURE__*/_jsxDEV("div", {
+      className: "min-h-screen bg-[#edf3f8] p-0",
+      children: /*#__PURE__*/_jsxDEV("div", {
+        className: "mx-auto flex h-screen max-w-[1500px] overflow-hidden bg-[#f6f7fb] shadow-[0_18px_42px_rgba(15,23,42,0.12)]",
+        children: [/*#__PURE__*/_jsxDEV("aside", {
+          key: "sidebar",
+          className: "w-[280px] shrink-0 bg-[#081d3a] px-4 py-5 text-white",
           children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white/10",
-            children: /*#__PURE__*/_jsxDEV("img", {
-              id: "appLogo",
-              src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
-              alt: "Gadoon Textile Mills Limited",
-              style: {
-                height: 30,
-                width: 30,
-                objectFit: 'cover',
-                borderRadius: 8
-              },
-              onError: e => e.target.style.display = 'none'
-            }, void 0, false)
-          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-            className: "flex flex-col leading-none",
-            children: [/*#__PURE__*/_jsxDEV("span", {
-              className: "text-[28px] font-extrabold tracking-tight text-white",
-              children: "Gadoon"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
-              className: "mt-1 text-[13px] text-white/70",
-              children: "Textile Mills Limited"
-            }, void 0, false)]
-          }, void 0, true)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "mb-5 px-2",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "mb-3 text-[13px] font-medium text-white/70",
-            children: "Module"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-            className: "grid grid-cols-2 gap-2",
-            children: [/*#__PURE__*/_jsxDEV("button", {
-              onClick: () => setModule('gate'),
-              className: `rounded-xl border px-3 py-3 text-left text-[15px] font-medium transition ${module === 'gate' ? 'border-white/30 bg-white/10 text-white shadow-inner' : 'border-white/20 bg-transparent text-white/70 hover:bg-white/5'}`,
-              children: "Gate System"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-              onClick: () => setModule('colony'),
-              className: `rounded-xl border px-3 py-3 text-left text-[15px] font-medium transition ${module === 'colony' ? 'border-white/30 bg-white/10 text-white shadow-inner' : 'border-white/20 bg-transparent text-white/70 hover:bg-white/5'}`,
-              children: "Colony/Rent"
-            }, void 0, false)]
-          }, void 0, true)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "px-2",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "mb-3 text-[13px] font-medium text-white/70",
-            children: "Sheets"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-            className: "text-[13px] text-white/60",
-            children: Object.keys(sheets).length ? Object.keys(sheets).slice(0, 2).join(', ') : 'No sheets loaded'
-          }, void 0, false)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("nav", {
-          className: "mt-6 space-y-2 px-2",
-          "aria-label": "Sidebar navigation",
-          children: [/*#__PURE__*/_jsxDEV("button", {
-            onClick: () => setActiveView('dashboard'),
-            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'dashboard' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
-            children: [/*#__PURE__*/_jsxDEV("span", {
-              children: "▣"
-            }, void 0, false), "Dashboard"]
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            onClick: () => setActiveView('table'),
-            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'table' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
-            children: [/*#__PURE__*/_jsxDEV("span", {
-              children: "🗂"
-            }, void 0, false), "Upload Excel"]
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            onClick: () => setActiveView('analytics'),
-            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'analytics' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
-            children: [/*#__PURE__*/_jsxDEV("span", {
-              children: "📊"
-            }, void 0, false), "Excel Data Table"]
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            onClick: () => setActiveView('reports'),
-            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'reports' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
-            children: [/*#__PURE__*/_jsxDEV("span", {
-              children: "📈"
-            }, void 0, false), "Analytics"]
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            onClick: () => setActiveView('about'),
-            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'about' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
-            children: [/*#__PURE__*/_jsxDEV("span", {
-              children: "ℹ"
-            }, void 0, false), "Reports"]
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            onClick: () => setActiveView('settings'),
-            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'settings' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
-            children: [/*#__PURE__*/_jsxDEV("span", {
-              children: "⚙"
-            }, void 0, false), "Settings"]
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            onClick: handleLogout,
-            className: "mt-4 flex w-full items-center gap-3 rounded-xl bg-transparent px-3 py-3 text-left text-[15px] font-medium text-[#ff817d] hover:bg-white/5",
-            children: [/*#__PURE__*/_jsxDEV("span", {
-              children: "⎋"
-            }, void 0, false), "Logout"]
-          }, void 0, false)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "mt-auto px-2 pt-8 text-[12px] text-white/60",
-          children: "© 2016-2026 Gadoon Textile Mills Limited. All Rights Reserved. | Version 2.4.0"
-        }, void 0, false)]
-      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "flex min-w-0 flex-1 flex-col bg-[#f5f7fa]",
-        children: [/*#__PURE__*/_jsxDEV("div", {
-          className: "flex items-center justify-between border-b border-slate-200 bg-[#f5f7fa] px-6 py-5",
-          children: [/*#__PURE__*/_jsxDEV("h1", {
-            className: "text-[34px] font-bold tracking-[-0.04em] text-slate-800",
-            children: "Dashboard"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-            className: "flex items-center gap-3",
-            children: [/*#__PURE__*/_jsxDEV("button", {
-              onClick: triggerUpload,
-              className: "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50",
-              children: "Upload Data"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-              onClick: downloadAttachedSample,
-              className: "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50",
-              children: "Download Attached Sample"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-              className: "flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm",
-              children: [/*#__PURE__*/_jsxDEV("span", {
-                className: "text-[12px] font-medium text-slate-500",
-                children: "Module:"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
-                className: "inline-flex h-3.5 w-3.5 rounded-full bg-[#1e9de6] shadow-[0_0_0_4px_rgba(30,157,230,0.15)]",
-                title: module
-              }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
-                className: "text-[15px] font-semibold text-slate-700",
-                children: module === 'gate' ? 'Gate System' : 'Colony/Rent'
-              }, void 0, false)]
-            }, void 0, true), /*#__PURE__*/_jsxDEV("input", {
-              id: "hiddenUploader",
-              type: "file",
-              accept: ".xlsx,.xls",
-              onChange: handleFile,
-              style: {
-                display: 'none'
-              }
-            }, void 0, false)]
-          }, void 0, true)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("main", {
-          className: "flex-1 overflow-auto px-6 py-6",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "grid grid-cols-4 gap-4",
+            key: "brand-row",
+            className: "mb-6 flex items-center gap-3 px-2",
             children: [/*#__PURE__*/_jsxDEV("div", {
-              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
-              children: [/*#__PURE__*/_jsxDEV("div", {
-                className: "mb-3 text-sm font-medium text-slate-500",
-                children: "Total Gate Entries"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                className: "text-[40px] font-bold leading-none text-slate-800",
-                children: String(kpis.totalGateToday || 0)
-              }, void 0, false)]
-            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
-              children: [/*#__PURE__*/_jsxDEV("div", {
-                className: "mb-3 text-sm font-medium text-slate-500",
-                children: "Active Vehicles Inside"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                className: "text-[40px] font-bold leading-none text-slate-800",
-                children: String(kpis.activeVehicles || 0)
-              }, void 0, false)]
-            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
-              children: [/*#__PURE__*/_jsxDEV("div", {
-                className: "mb-3 text-sm font-medium text-slate-500",
-                children: "Total Colony Residents"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                className: "text-[40px] font-bold leading-none text-slate-800",
-                children: String(kpis.totalResidents || 0)
-              }, void 0, false)]
-            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
-              children: [/*#__PURE__*/_jsxDEV("div", {
-                className: "mb-3 text-sm font-medium text-slate-500",
-                children: "Rent Collected"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                className: "text-[40px] font-bold leading-none text-slate-800",
-                children: `PKR ${Number(kpis.rentCollected || 0).toLocaleString()}`
+              key: "brand-icon",
+              className: "flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-white/10",
+              children: /*#__PURE__*/_jsxDEV("img", {
+                id: "appLogo",
+                src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
+                alt: "Gadoon Textile Mills Limited",
+                style: {
+                  height: 28,
+                  width: 28,
+                  objectFit: 'cover',
+                  borderRadius: 8
+                },
+                onError: e => e.target.style.display = 'none'
+              }, void 0, false)
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              key: "brand-name",
+              className: "flex flex-col leading-tight",
+              children: [/*#__PURE__*/_jsxDEV("span", {
+                key: "brand-title",
+                className: "text-[24px] font-extrabold tracking-tight text-white",
+                children: "Gadoon"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+                key: "brand-subtitle",
+                className: "mt-1 text-[12px] text-white/70",
+                children: "Textile Mills Limited"
               }, void 0, false)]
             }, void 0, true)]
           }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "mt-6 grid grid-cols-3 gap-4",
+            key: "module-block",
+            className: "mb-5 px-2",
             children: [/*#__PURE__*/_jsxDEV("div", {
-              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
-              children: [/*#__PURE__*/_jsxDEV("h3", {
-                className: "mb-3 text-[19px] font-semibold text-slate-700",
-                children: "Daily Movement Trends"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-                id: "lineChart",
-                className: "chart-canvas h-52 w-full"
-              }, void 0, false)]
-            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
-              children: [/*#__PURE__*/_jsxDEV("h3", {
-                className: "mb-3 text-[19px] font-semibold text-slate-700",
-                children: "Occupancy Rate by Block"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-                id: "barChart",
-                className: "chart-canvas h-52 w-full"
-              }, void 0, false)]
-            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
-              children: [/*#__PURE__*/_jsxDEV("h3", {
-                className: "mb-3 text-[19px] font-semibold text-slate-700",
-                children: "Rent Payment Status"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-                id: "pieChart",
-                className: "chart-canvas h-52 w-full"
+              key: "module-label",
+              className: "mb-2 text-[12px] font-medium uppercase tracking-[0.12em] text-white/65",
+              children: "Module"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              key: "module-buttons",
+              className: "grid grid-cols-2 gap-2",
+              children: [/*#__PURE__*/_jsxDEV("button", {
+                key: "gate-module",
+                onClick: () => setModule('gate'),
+                className: `rounded-xl border px-2.5 py-2.5 text-left text-[14px] font-medium transition ${module === 'gate' ? 'border-white/30 bg-white/10 text-white shadow-inner' : 'border-white/20 bg-transparent text-white/70 hover:bg-white/5'}`,
+                children: "Gate System"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+                key: "colony-module",
+                onClick: () => setModule('colony'),
+                className: `rounded-xl border px-2.5 py-2.5 text-left text-[14px] font-medium transition ${module === 'colony' ? 'border-white/30 bg-white/10 text-white shadow-inner' : 'border-white/20 bg-transparent text-white/70 hover:bg-white/5'}`,
+                children: "Colony/Rent"
               }, void 0, false)]
             }, void 0, true)]
-          }, void 0, true)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "flex items-center justify-between border-t border-slate-200 bg-white/70 px-6 py-4 text-[12px] text-slate-500",
-          children: [/*#__PURE__*/_jsxDEV("span", {
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            key: "sheet-block",
+            className: "px-2",
+            children: [/*#__PURE__*/_jsxDEV("div", {
+              key: "sheet-label",
+              className: "mb-2 text-[12px] font-medium uppercase tracking-[0.12em] text-white/65",
+              children: "Sheets"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              key: "sheet-value",
+              className: "text-[12px] leading-relaxed text-white/60",
+              children: Object.keys(sheets).length ? Object.keys(sheets).slice(0, 2).join(', ') : 'No sheets loaded'
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("nav", {
+            key: "nav-menu",
+            className: "mt-6 space-y-2 px-2",
+            "aria-label": "Sidebar navigation",
+            children: [/*#__PURE__*/_jsxDEV("button", {
+              key: "nav-dashboard",
+              onClick: () => setActiveView('dashboard'),
+              className: `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] font-medium transition ${activeView === 'dashboard' ? 'bg-white text-[#0d1d37]' : 'text-white/75 hover:bg-white/5'}`,
+              children: [/*#__PURE__*/_jsxDEV("span", {
+                key: "dash-icon",
+                children: "▣"
+              }, void 0, false), "Dashboard"]
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              key: "nav-upload",
+              onClick: () => setActiveView('table'),
+              className: `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] font-medium transition ${activeView === 'table' ? 'bg-white text-[#0d1d37]' : 'text-white/75 hover:bg-white/5'}`,
+              children: [/*#__PURE__*/_jsxDEV("span", {
+                key: "upload-icon",
+                children: "🗂"
+              }, void 0, false), "Upload Excel"]
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              key: "nav-analytics-table",
+              onClick: () => setActiveView('analytics'),
+              className: `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] font-medium transition ${activeView === 'analytics' ? 'bg-white text-[#0d1d37]' : 'text-white/75 hover:bg-white/5'}`,
+              children: [/*#__PURE__*/_jsxDEV("span", {
+                key: "analytics-icon",
+                children: "📊"
+              }, void 0, false), "Excel Data Table"]
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              key: "nav-analytics-report",
+              onClick: () => setActiveView('reports'),
+              className: `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] font-medium transition ${activeView === 'reports' ? 'bg-white text-[#0d1d37]' : 'text-white/75 hover:bg-white/5'}`,
+              children: [/*#__PURE__*/_jsxDEV("span", {
+                key: "reports-icon",
+                children: "📈"
+              }, void 0, false), "Analytics"]
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              key: "nav-about",
+              onClick: () => setActiveView('about'),
+              className: `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] font-medium transition ${activeView === 'about' ? 'bg-white text-[#0d1d37]' : 'text-white/75 hover:bg-white/5'}`,
+              children: [/*#__PURE__*/_jsxDEV("span", {
+                key: "about-icon",
+                children: "ℹ"
+              }, void 0, false), "Reports"]
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              key: "nav-settings",
+              onClick: () => setActiveView('settings'),
+              className: `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] font-medium transition ${activeView === 'settings' ? 'bg-white text-[#0d1d37]' : 'text-white/75 hover:bg-white/5'}`,
+              children: [/*#__PURE__*/_jsxDEV("span", {
+                key: "settings-icon",
+                children: "⚙"
+              }, void 0, false), "Settings"]
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              key: "nav-logout",
+              onClick: handleLogout,
+              className: "mt-4 flex w-full items-center gap-3 rounded-xl bg-transparent px-3 py-2.5 text-left text-[14px] font-medium text-[#ff817d] hover:bg-white/5",
+              children: [/*#__PURE__*/_jsxDEV("span", {
+                key: "logout-icon",
+                children: "⎋"
+              }, void 0, false), "Logout"]
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            key: "footer-copy",
+            className: "mt-auto px-2 pt-7 text-[11px] text-white/60",
             children: "© 2016-2026 Gadoon Textile Mills Limited. All Rights Reserved."
-          }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
-            children: "Version 2.4.0 (Enterprise Build)"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-            className: "flex h-8 w-8 items-center justify-center rounded-full bg-[#c29df2] text-[12px] font-bold text-white",
-            children: "A"
           }, void 0, false)]
-        }, void 0, true)]
-      }, void 0, true)]
-    }, void 0, false)
-  }, void 0, false);
-  const uploadView = /*#__PURE__*/_jsxDEV("div", {
-    className: "card p-6 rounded",
-    children: [/*#__PURE__*/_jsxDEV("h3", {
-      className: "font-semibold mb-3",
-      children: "Upload Excel Workbook"
-    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-      className: "mb-4",
-      children: /*#__PURE__*/_jsxDEV("input", {
-        "aria-label": "Upload Excel workbook",
-        type: "file",
-        accept: ".xlsx,.xls",
-        onChange: handleFile
-      }, void 0, false)
-    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-      className: "flex space-x-2",
-      children: /*#__PURE__*/_jsxDEV("button", {
-        onClick: downloadSample,
-        "aria-label": "Download sample excel template",
-        className: "px-3 py-2 rounded text-white",
-        style: {
-          background: PRIMARY
-        },
-        children: "Download Sample Excel Template"
-      }, void 0, false)
-    }, void 0, false)]
-  }, void 0, true);
-  const tableView = /*#__PURE__*/_jsxDEV("div", {
-    children: [/*#__PURE__*/_jsxDEV("div", {
-      className: "flex items-center gap-3 mb-3",
-      children: [/*#__PURE__*/_jsxDEV("label", {
-        className: "text-sm",
-        children: "Select Sheet:"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
-        "aria-label": "Select sheet",
-        value: selectedSheet || '',
-        onChange: e => setSelectedSheet(e.target.value),
-        className: "p-2 border rounded",
-        children: Object.keys(sheets).map(name => /*#__PURE__*/_jsxDEV("option", {
-          value: name,
-          children: name
-        }, name, false))
-      }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-        "aria-label": "Search across columns",
-        placeholder: "Search across columns",
-        value: search,
-        onChange: e => setSearch(e.target.value),
-        className: "p-2 border rounded flex-1"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-        "aria-label": "Status filter",
-        placeholder: "Status filter (e.g., Paid, Gate In)",
-        value: statusFilter,
-        onChange: e => setStatusFilter(e.target.value),
-        className: "p-2 border rounded"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        "aria-label": "Export filtered data to excel",
-        onClick: exportFiltered,
-        className: "px-3 py-2 rounded text-white",
-        style: {
-          background: PRIMARY
-        },
-        children: "Export Filtered Data.xlsx"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        "aria-label": "Save all rows locally",
-        onClick: () => saveAll(selectedSheet),
-        className: "px-3 py-2 rounded text-white",
-        style: {
-          background: '#16a34a'
-        },
-        children: "Save All"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        "aria-label": "Save all sheets to server (JSON only)",
-        onClick: saveToServer,
-        className: "px-3 py-2 rounded text-white",
-        style: {
-          background: NAVY
-        },
-        children: "Save JSON to Server (no Excel)"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        "aria-label": "Load sheets from server",
-        onClick: loadFromServer,
-        className: "px-3 py-2 rounded text-gray-800",
-        style: {
-          background: '#e6edf3'
-        },
-        children: "Load from Server"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        "aria-label": "Download all sheets",
-        onClick: downloadAllSheets,
-        className: "px-3 py-2 rounded text-white",
-        style: {
-          background: '#0b74c6'
-        },
-        children: "Download All Sheets"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        "aria-label": "Add new entry",
-        onClick: () => {
-          setShowNewModal(true);
-          setNewEntryData({});
-        },
-        className: "px-3 py-2 rounded text-white",
-        style: {
-          background: '#0ea5a4'
-        },
-        children: "+ Add New Entry"
-      }, void 0, false)]
-    }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-      className: "mt-2 text-sm text-gray-600",
-      children: "Note: The server persists parsed sheet data as JSON only — original Excel files are not uploaded or stored on the backend."
-    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-      className: "overflow-auto card rounded p-2",
-      children: selectedSheet && /*#__PURE__*/_jsxDEV("table", {
-        className: "min-w-full table-auto",
-        children: [/*#__PURE__*/_jsxDEV("thead", {
-          children: /*#__PURE__*/_jsxDEV("tr", {
-            children: [sheets[selectedSheet].columns.map((c, i) => /*#__PURE__*/_jsxDEV("th", {
-              className: "text-left p-2 bg-gray-100",
-              children: c
-            }, i, false)), /*#__PURE__*/_jsxDEV("th", {
-              className: "text-left p-2 bg-gray-100",
-              children: "Actions"
-            }, void 0, false)]
-          }, void 0, true)
-        }, void 0, false), /*#__PURE__*/_jsxDEV("tbody", {
-          children: (() => {
-            const allRows = sheets[selectedSheet].rows.filter(r => filterRow(r));
-            const total = allRows.length;
-            const pages = Math.max(1, Math.ceil(total / pageSize));
-            const curPage = Math.min(page, pages);
-            const start = (curPage - 1) * pageSize;
-            const paginated = allRows.slice(start, start + pageSize);
-            return paginated.map((r, idx) => {
-              const ri = start + idx;
-              return /*#__PURE__*/_jsxDEV("tr", {
-                className: `border-b hover:bg-gray-50 ${dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? 'bg-yellow-50' : ''}`,
-                children: [sheets[selectedSheet].columns.map((c, ci) => /*#__PURE__*/_jsxDEV("td", {
-                  className: "p-2",
-                  children: /*#__PURE__*/_jsxDEV("input", {
-                    "aria-label": `Edit ${c}`,
-                    className: "w-full border p-1 rounded",
-                    value: r[c],
-                    onChange: e => updateCell(selectedSheet, ri, c, e.target.value)
-                  }, void 0, false)
-                }, ci, false)), /*#__PURE__*/_jsxDEV("td", {
-                  className: "p-2",
-                  children: dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? /*#__PURE__*/_jsxDEV("div", {
-                    className: "flex gap-2",
-                    children: [/*#__PURE__*/_jsxDEV("button", {
-                      "aria-label": `Save row ${ri + 1}`,
-                      onClick: () => saveRow(selectedSheet, ri),
-                      className: "px-2 py-1 bg-green-500 text-white rounded text-sm",
-                      children: "Save"
-                    }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-                      "aria-label": `Undo row ${ri + 1}`,
-                      onClick: () => undoRow(selectedSheet, ri),
-                      className: "px-2 py-1 bg-gray-300 text-black rounded text-sm",
-                      children: "Undo"
-                    }, void 0, false)]
-                  }, void 0, true) : /*#__PURE__*/_jsxDEV("div", {
-                    className: "text-xs text-gray-500",
-                    children: "No changes"
-                  }, void 0, false)
-                }, void 0, false)]
-              }, ri, true);
-            });
-          })()
-        }, void 0, false)]
-      }, void 0, true)
-    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-      className: "flex items-center justify-between mt-3",
-      children: [/*#__PURE__*/_jsxDEV("div", {
-        className: "text-sm",
-        children: ["Page ", page]
-      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "flex items-center gap-2",
-        children: [/*#__PURE__*/_jsxDEV("button", {
-          onClick: () => setPage(p => Math.max(1, p - 1)),
-          className: "px-2 py-1 border rounded",
-          children: "Prev"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-          onClick: () => setPage(p => p + 1),
-          className: "px-2 py-1 border rounded",
-          children: "Next"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
-          value: pageSize,
-          onChange: e => setPageSize(parseInt(e.target.value)),
-          className: "p-1 border rounded",
-          children: [/*#__PURE__*/_jsxDEV("option", {
-            value: 5,
-            children: "5"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
-            value: 10,
-            children: "10"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
-            value: 25,
-            children: "25"
-          }, void 0, false)]
-        }, void 0, true)]
-      }, void 0, true)]
-    }, void 0, true), showNewModal && selectedSheet && /*#__PURE__*/_jsxDEV("div", {
-      className: "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center",
-      children: /*#__PURE__*/_jsxDEV("div", {
-        className: "bg-white rounded-lg w-2/3 p-6",
-        children: [/*#__PURE__*/_jsxDEV("h3", {
-          className: "text-lg font-semibold mb-3",
-          children: ["Add New Entry — ", selectedSheet]
         }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "grid grid-cols-2 gap-3 max-h-72 overflow-auto mb-4",
-          children: sheets[selectedSheet].columns.map((col, ci) => /*#__PURE__*/_jsxDEV("div", {
-            children: [/*#__PURE__*/_jsxDEV("label", {
-              className: "text-sm text-gray-600",
-              children: col
-            }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-              className: "w-full border p-2 rounded mt-1",
-              value: newEntryData[col] || '',
-              onChange: e => setNewEntryData(prev => ({
-                ...prev,
-                [col]: e.target.value
-              }))
-            }, void 0, false)]
-          }, ci, true))
-        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "flex justify-end gap-2",
-          children: [/*#__PURE__*/_jsxDEV("button", {
-            className: "px-3 py-2 border rounded",
-            onClick: () => setShowNewModal(false),
-            children: "Cancel"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            className: "px-3 py-2 bg-blue-600 text-white rounded",
-            onClick: () => {
-              setSheets(prev => {
-                const copy = JSON.parse(JSON.stringify(prev));
-                copy[selectedSheet].rows.push(Object.fromEntries(sheets[selectedSheet].columns.map(c => [c, newEntryData[c] || ''])));
-                const newIndex = copy[selectedSheet].rows.length - 1;
-                setDirtyRows(drPrev => {
-                  const copyDr = JSON.parse(JSON.stringify(drPrev || {}));
-                  copyDr[selectedSheet] = copyDr[selectedSheet] || {};
-                  copyDr[selectedSheet][newIndex] = true;
-                  return copyDr;
-                });
-                return copy;
-              });
-              setShowNewModal(false);
-              setTimeout(() => {
-                try {
-                  updateCharts();
-                } catch (e) {}
-              }, 200);
-            },
-            children: "Add Entry"
+          key: "content-shell",
+          className: "flex min-w-0 flex-1 flex-col bg-[#f5f7fa]",
+          children: [/*#__PURE__*/_jsxDEV("header", {
+            key: "page-header",
+            className: "flex items-center justify-between border-b border-slate-200 bg-[#f5f7fa] px-5 py-4",
+            children: [/*#__PURE__*/_jsxDEV("h1", {
+              key: "page-title",
+              className: "text-[26px] font-bold tracking-[-0.04em] text-slate-800",
+              children: title
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              key: "header-actions",
+              className: "flex items-center gap-3",
+              children: actions || []
+            }, void 0, true)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("main", {
+            key: "page-main",
+            className: "flex-1 overflow-auto px-5 py-5",
+            children: content
           }, void 0, false)]
         }, void 0, true)]
-      }, void 0, true)
-    }, void 0, false)]
-  }, void 0, true);
-  const analyticsView = /*#__PURE__*/_jsxDEV("div", {
+      }, void 0, false)
+    }, void 0, false);
+  }
+
+  function renderCharts() {
+    const daily = {};
+    const occupancy = {};
+    const rentStatus = {
+      Paid: 0,
+      Pending: 0,
+      Overdue: 0
+    };
+    const activeRows = getModuleRows(module);
+    const useGateData = module === 'gate';
+    activeRows.forEach(([name, s]) => {
+      s.rows.forEach(r => {
+        const din = r['Date/Time In'] || r['Date Time In'] || r['In Time'] || r['Entry Time'] || r['Date'] || '';
+        const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Out Time'] || r['Exit Time'] || '';
+        if (din) {
+          const d = ('' + din).split(' ')[0];
+          daily[d] = daily[d] || {
+            in: 0,
+            out: 0
+          };
+          daily[d].in += 1;
+        }
+        if (dout) {
+          const d = ('' + dout).split(' ')[0];
+          daily[d] = daily[d] || {
+            in: 0,
+            out: 0
+          };
+          daily[d].out += 1;
+        }
+        const block = r['Block'] || r['Quarter #'] || r['Block #'] || r['Block Name'] || r['Department / Host'] || r['Department'] || r['Category'] || r['Vehicle Type'] || r['Vehicle No.'] || r['Host Department'] || r['Company / Organization'] || '';
+        if (block) occupancy[block] = (occupancy[block] || 0) + 1;
+        const rowText = Object.values(r).join(' ').toLowerCase();
+        const rentValue = extractNumber(r['Rent'] || r['Rent Amount'] || r['Amount'] || 0);
+        if (useGateData) {
+          if (rowText.includes('paid')) rentStatus.Paid += 1;else if (rowText.includes('overdue') || rowText.includes('due')) rentStatus.Overdue += 1;else if (rowText.includes('pending') || rowText.includes('status')) rentStatus.Pending += 1;
+        } else if (rentValue) {
+          if (rowText.includes('paid') || rowText.includes('settled')) rentStatus.Paid += rentValue;else if (rowText.includes('overdue') || rowText.includes('due')) rentStatus.Overdue += rentValue;else rentStatus.Pending += rentValue;
+        }
+      });
+    });
+    if (module !== 'gate' && Object.keys(occupancy).length === 0) {
+      Object.keys(sheets).forEach(name => {
+        const s = sheets[name];
+        s.rows.forEach(r => {
+          const block = r['Quarter No.'] || r['Quarter #'] || r['Room'] || r['Shop / Hotel Name'] || r['Company / Organization'] || '';
+          if (block) occupancy[block] = (occupancy[block] || 0) + 1;
+        });
+      });
+    }
+    renderChartsFromData({
+      daily,
+      occupancy,
+      rentStatus
+    });
+  }
+  function renderChartsFromData({
+    daily = {},
+    occupancy = {},
+    rentStatus = {}
+  }) {
+    try {
+      const lineEl = document.getElementById('lineChart') || document.getElementById('lineChart2');
+      if (lineEl) {
+        try {
+          if (window._lineChart) window._lineChart.destroy();
+        } catch (e) {}
+        const labels = Object.keys(daily).sort();
+        const ins = labels.map(d => daily[d].in || 0);
+        const outs = labels.map(d => daily[d].out || 0);
+        window._lineChart = new Chart(lineEl.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Entries',
+              data: ins,
+              borderColor: PRIMARY,
+              backgroundColor: 'rgba(0,163,224,0.08)',
+              fill: true
+            }, {
+              label: 'Exits',
+              data: outs,
+              borderColor: NAVY,
+              backgroundColor: 'rgba(12,35,64,0.06)',
+              fill: true
+            }]
+          }
+        });
+      }
+      const barEl = document.getElementById('barChart') || document.getElementById('barChart2');
+      if (barEl) {
+        try {
+          if (window._barChart) window._barChart.destroy();
+        } catch (e) {}
+        const bLabels = Object.keys(occupancy);
+        const bVals = bLabels.map(l => occupancy[l] || 0);
+        window._barChart = new Chart(barEl.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: bLabels,
+            datasets: [{
+              label: 'Occupancy',
+              data: bVals,
+              backgroundColor: bLabels.map((_, i) => i % 2 ? PRIMARY : '#1E90FF')
+            }]
+          },
+          options: {
+            indexAxis: 'y'
+          }
+        });
+      }
+      const pieEl = document.getElementById('pieChart') || document.getElementById('pieChart2');
+      if (pieEl) {
+        try {
+          if (window._pieChart) window._pieChart.destroy();
+        } catch (e) {}
+        const pVals = [rentStatus.Paid || 0, rentStatus.Pending || 0, rentStatus.Overdue || 0];
+        window._pieChart = new Chart(pieEl.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Paid', 'Pending', 'Overdue'],
+            datasets: [{
+              data: pVals,
+              backgroundColor: [PRIMARY, '#FFD36E', '#FF7A7A']
+            }]
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('renderChartsFromData error', e);
+    }
+  }
+  function updateCharts() {
+    const daily = {};
+    const occupancy = {};
+    const rentStatus = {
+      Paid: 0,
+      Pending: 0,
+      Overdue: 0
+    };
+    const activeRows = getModuleRows(module);
+    const useGateData = module === 'gate';
+    if (activeRows.length) {
+      activeRows.forEach(([name, s]) => {
+        s.rows.forEach(r => {
+          const din = r['Date/Time In'] || r['Date Time In'] || r['In Time'] || r['Entry Time'] || r['Date'] || '';
+          const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Out Time'] || r['Exit Time'] || '';
+          if (din) {
+            const d = ('' + din).split(' ')[0];
+            daily[d] = daily[d] || {
+              in: 0,
+              out: 0
+            };
+            daily[d].in += 1;
+          }
+          if (dout) {
+            const d = ('' + dout).split(' ')[0];
+            daily[d] = daily[d] || {
+              in: 0,
+              out: 0
+            };
+            daily[d].out += 1;
+          }
+          const block = r['Block'] || r['Quarter #'] || r['Block #'] || r['Block Name'] || r['Department / Host'] || r['Department'] || r['Category'] || r['Vehicle Type'] || r['Vehicle No.'] || r['Host Department'] || r['Company / Organization'] || '';
+          if (block) occupancy[block] = (occupancy[block] || 0) + 1;
+          const rowText = Object.values(r).join(' ').toLowerCase();
+          const rentValue = extractNumber(r['Rent'] || r['Rent Amount'] || r['Amount'] || 0);
+          if (useGateData) {
+            if (rowText.includes('paid')) rentStatus.Paid += 1;else if (rowText.includes('overdue') || rowText.includes('due')) rentStatus.Overdue += 1;else if (rowText.includes('pending') || rowText.includes('status')) rentStatus.Pending += 1;
+          } else if (rentValue) {
+            if (rowText.includes('paid') || rowText.includes('settled')) rentStatus.Paid += rentValue;else if (rowText.includes('overdue') || rowText.includes('due')) rentStatus.Overdue += rentValue;else rentStatus.Pending += rentValue;
+          }
+        });
+      });
+    }
+    if (!Object.keys(daily).length && Object.keys(sheets).length) {
+      Object.keys(sheets).forEach(name => {
+        const s = sheets[name];
+        s.rows.forEach(r => {
+          const din = r['Date/Time In'] || r['Date Time In'] || r['In Time'] || r['Entry Time'] || r['Date'] || '';
+          const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Out Time'] || r['Exit Time'] || '';
+          if (din) {
+            const d = ('' + din).split(' ')[0];
+            daily[d] = daily[d] || { in: 0, out: 0 };
+            daily[d].in += 1;
+          }
+          if (dout) {
+            const d = ('' + dout).split(' ')[0];
+            daily[d] = daily[d] || { in: 0, out: 0 };
+            daily[d].out += 1;
+          }
+        });
+      });
+    }
+    renderChartsFromData({
+      daily,
+      occupancy,
+      rentStatus
+    });
+  }
+  setTimeout(() => updateCharts(), 800);
+
+  const dashboardContent = /*#__PURE__*/_jsxDEV("div", {
+    className: "space-y-5",
     children: [/*#__PURE__*/_jsxDEV("div", {
-      className: "flex gap-3 mb-4",
-      children: [/*#__PURE__*/_jsxDEV("button", {
-        onClick: () => {
-          renderCharts();
-        },
-        className: "px-3 py-2 rounded",
-        style: {
-          background: PRIMARY,
-          color: '#fff'
-        },
-        children: "Refresh Charts"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        onClick: downloadAnalyticsPDF,
-        className: "px-3 py-2 rounded",
-        style: {
-          background: NAVY,
-          color: '#fff'
-        },
-        children: "Download Analytics Summary Report (PDF)"
-      }, void 0, false)]
+      key: "kpi-grid",
+      className: "grid grid-cols-4 gap-4",
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        key: "kpi-gate",
+        className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          key: "kpi-gate-label",
+          className: "mb-2 text-sm font-medium text-slate-500",
+          children: "Total Gate Entries"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          key: "kpi-gate-value",
+          className: "text-[30px] font-bold leading-none text-slate-800",
+          children: String(kpis.totalGateToday || 0)
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        key: "kpi-vehicles",
+        className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          key: "kpi-vehicles-label",
+          className: "mb-2 text-sm font-medium text-slate-500",
+          children: "Active Vehicles Inside"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          key: "kpi-vehicles-value",
+          className: "text-[30px] font-bold leading-none text-slate-800",
+          children: String(kpis.activeVehicles || 0)
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        key: "kpi-residents",
+        className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          key: "kpi-residents-label",
+          className: "mb-2 text-sm font-medium text-slate-500",
+          children: "Total Colony Residents"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          key: "kpi-residents-value",
+          className: "text-[30px] font-bold leading-none text-slate-800",
+          children: String(kpis.totalResidents || 0)
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        key: "kpi-rent",
+        className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          key: "kpi-rent-label",
+          className: "mb-2 text-sm font-medium text-slate-500",
+          children: "Rent Collected"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          key: "kpi-rent-value",
+          className: "text-[30px] font-bold leading-none text-slate-800",
+          children: `PKR ${Number(kpis.rentCollected || 0).toLocaleString()}`
+        }, void 0, false)]
+      }, void 0, true)]
     }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+      key: "chart-grid",
       className: "grid grid-cols-3 gap-4",
       children: [/*#__PURE__*/_jsxDEV("div", {
-        className: "p-4 card rounded",
+        key: "chart-line",
+        className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
         children: [/*#__PURE__*/_jsxDEV("h3", {
-          className: "font-semibold mb-2",
+          key: "chart-line-title",
+          className: "mb-3 text-[17px] font-semibold text-slate-700",
           children: "Daily Movement Trends"
         }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-          id: "lineChart2",
-          className: "chart-canvas"
+          id: "lineChart",
+          className: "chart-canvas h-52 w-full"
         }, void 0, false)]
       }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "p-4 card rounded",
+        key: "chart-bar",
+        className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
         children: [/*#__PURE__*/_jsxDEV("h3", {
-          className: "font-semibold mb-2",
+          key: "chart-bar-title",
+          className: "mb-3 text-[17px] font-semibold text-slate-700",
           children: "Occupancy Rate by Block"
         }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-          id: "barChart2",
-          className: "chart-canvas"
+          id: "barChart",
+          className: "chart-canvas h-52 w-full"
         }, void 0, false)]
       }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "p-4 card rounded",
+        key: "chart-pie",
+        className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
         children: [/*#__PURE__*/_jsxDEV("h3", {
-          className: "font-semibold mb-2",
-          children: "Rent Payment Status Breakdown"
+          key: "chart-pie-title",
+          className: "mb-3 text-[17px] font-semibold text-slate-700",
+          children: "Rent Payment Status"
         }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-          id: "pieChart2",
-          className: "chart-canvas"
+          id: "pieChart",
+          className: "chart-canvas h-52 w-full"
         }, void 0, false)]
       }, void 0, true)]
     }, void 0, true)]
-  }, void 0, true);
-  const reportsView = /*#__PURE__*/_jsxDEV("div", {
-    className: "card p-4 rounded",
-    children: [/*#__PURE__*/_jsxDEV("h3", {
-      className: "font-semibold",
-      children: "Reports & Exports"
+  }, void 0, false);
+
+  const dashboardView = renderAppShell({
+    title: 'Dashboard',
+    actions: [/*#__PURE__*/_jsxDEV("button", {
+      key: "dashboard-upload",
+      onClick: triggerUpload,
+      className: "rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50",
+      children: "Upload Data"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+      key: "dashboard-sample",
+      onClick: downloadAttachedSample,
+      className: "rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50",
+      children: "Download Sample"
     }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-      className: "mt-3",
-      children: /*#__PURE__*/_jsxDEV("button", {
-        onClick: downloadAnalyticsPDF,
-        className: "px-3 py-2 rounded text-white",
-        style: {
-          background: NAVY
-        },
-        children: "Download Analytics Summary PDF"
-      }, void 0, false)
-    }, void 0, false)]
-  }, void 0, true);
-  const aboutView = /*#__PURE__*/_jsxDEV("div", {
-    className: "card p-4 rounded",
-    children: [/*#__PURE__*/_jsxDEV("h3", {
-      className: "font-semibold",
-      children: "About — B2B Executive Insights"
-    }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-      className: "mt-2 text-sm text-gray-700",
-      children: "Automated Gate Pass and Housing/Rent tracking optimizes mill supply chain throughput, enhances security compliance, and improves estate revenue management. This portal centralizes operational registers, enables quick analytics, and offers exportable reports for stakeholders."
-    }, void 0, false)]
-  }, void 0, true);
-  const settingsView = /*#__PURE__*/_jsxDEV("div", {
-    className: "card p-4 rounded",
-    children: [/*#__PURE__*/_jsxDEV("h3", {
-      className: "font-semibold",
-      children: "Settings"
-    }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-      className: "text-sm mt-2",
-      children: ["Theme and preferences (demo). Primary color: ", /*#__PURE__*/_jsxDEV("span", {
-        style: {
-          color: PRIMARY
-        },
-        children: PRIMARY
+      key: "dashboard-module",
+      className: "flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2 shadow-sm",
+      children: [/*#__PURE__*/_jsxDEV("span", {
+        key: "module-label",
+        className: "text-[11px] font-medium text-slate-500",
+        children: "Module:"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+        key: "module-dot",
+        className: "inline-flex h-3 w-3 rounded-full bg-[#1e9de6] shadow-[0_0_0_4px_rgba(30,157,230,0.15)]",
+        title: module
+      }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+        key: "module-value",
+        className: "text-[13px] font-semibold text-slate-700",
+        children: module === 'gate' ? 'Gate System' : 'Colony/Rent'
       }, void 0, false)]
-    }, void 0, true)]
-  }, void 0, true);
+    }, void 0, true), /*#__PURE__*/_jsxDEV("input", {
+      key: "hidden-uploader",
+      id: "hiddenUploader",
+      type: "file",
+      accept: ".xlsx,.xls",
+      onChange: handleFile,
+      style: {
+        display: 'none'
+      }
+    }, void 0, false)],
+    content: dashboardContent
+  });
+
+  const uploadView = renderAppShell({
+    title: 'Upload Workbook',
+    actions: [/*#__PURE__*/_jsxDEV("button", {
+      key: "upload-sample",
+      onClick: downloadSample,
+      className: "px-3 py-2 rounded text-white text-sm",
+      style: {
+        background: PRIMARY
+      },
+      children: "Download Sample Excel Template"
+    }, void 0, false)],
+    content: /*#__PURE__*/_jsxDEV("div", {
+      className: "card rounded p-6",
+      children: [/*#__PURE__*/_jsxDEV("h3", {
+        key: "upload-title",
+        className: "mb-3 text-lg font-semibold text-slate-700",
+        children: "Upload Excel Workbook"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+        key: "upload-input-row",
+        className: "mb-4",
+        children: /*#__PURE__*/_jsxDEV("input", {
+          "aria-label": "Upload Excel workbook",
+          type: "file",
+          accept: ".xlsx,.xls",
+          onChange: handleFile
+        }, void 0, false)
+      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+        key: "upload-action-row",
+        className: "flex gap-2",
+        children: /*#__PURE__*/_jsxDEV("button", {
+          onClick: downloadSample,
+          "aria-label": "Download sample excel template",
+          className: "px-3 py-2 rounded text-white",
+          style: {
+            background: PRIMARY
+          },
+          children: "Download Sample Excel Template"
+        }, void 0, false)
+      }, void 0, false)]
+    }, void 0, true)
+  });
+
+  const tableView = renderAppShell({
+    title: 'Excel Data Table',
+    actions: [/*#__PURE__*/_jsxDEV("button", {
+      key: "export-filtered",
+      "aria-label": "Export filtered data to excel",
+      onClick: exportFiltered,
+      className: "px-3 py-2 rounded text-white text-sm",
+      style: {
+        background: PRIMARY
+      },
+      children: "Export Filtered Data.xlsx"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+      key: "save-all",
+      "aria-label": "Save all rows locally",
+      onClick: () => saveAll(selectedSheet),
+      className: "px-3 py-2 rounded text-white text-sm",
+      style: {
+        background: '#16a34a'
+      },
+      children: "Save All"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+      key: "save-server",
+      "aria-label": "Save all sheets to server (JSON only)",
+      onClick: saveToServer,
+      className: "px-3 py-2 rounded text-white text-sm",
+      style: {
+        background: NAVY
+      },
+      children: "Save JSON to Server"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+      key: "load-server",
+      "aria-label": "Load sheets from server",
+      onClick: loadFromServer,
+      className: "px-3 py-2 rounded text-gray-800 text-sm",
+      style: {
+        background: '#e6edf3'
+      },
+      children: "Load from Server"
+    }, void 0, false)],
+    content: /*#__PURE__*/_jsxDEV("div", {
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        key: "table-toolbar",
+        className: "mb-3 flex flex-wrap items-center gap-2",
+        children: [/*#__PURE__*/_jsxDEV("label", {
+          key: "sheet-label",
+          className: "text-sm text-slate-600",
+          children: "Select Sheet:"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
+          key: "sheet-select",
+          "aria-label": "Select sheet",
+          value: selectedSheet || '',
+          onChange: e => setSelectedSheet(e.target.value),
+          className: "rounded border border-slate-300 bg-white p-2 text-sm",
+          children: Object.keys(sheets).map(name => /*#__PURE__*/_jsxDEV("option", {
+            key: `sheet-${name}`,
+            value: name,
+            children: name
+          }, name, false))
+        }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+          key: "search-input",
+          "aria-label": "Search across columns",
+          placeholder: "Search across columns",
+          value: search,
+          onChange: e => setSearch(e.target.value),
+          className: "min-w-[220px] flex-1 rounded border border-slate-300 bg-white p-2 text-sm"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+          key: "status-input",
+          "aria-label": "Status filter",
+          placeholder: "Status filter",
+          value: statusFilter,
+          onChange: e => setStatusFilter(e.target.value),
+          className: "rounded border border-slate-300 bg-white p-2 text-sm"
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        key: "table-note",
+        className: "mt-2 text-sm text-gray-600",
+        children: "Note: The server persists parsed sheet data as JSON only — original Excel files are not uploaded or stored on the backend."
+      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+        key: "table-container",
+        className: "overflow-auto card rounded p-2 mt-3",
+        children: selectedSheet && /*#__PURE__*/_jsxDEV("table", {
+          className: "min-w-full table-auto",
+          children: [/*#__PURE__*/_jsxDEV("thead", {
+            key: "table-head",
+            children: /*#__PURE__*/_jsxDEV("tr", {
+              key: "table-head-row",
+              children: [sheets[selectedSheet].columns.map((c, i) => /*#__PURE__*/_jsxDEV("th", {
+                key: `col-head-${c}-${i}`,
+                className: "bg-gray-100 p-2 text-left text-sm font-medium text-slate-700",
+                children: c
+              }, i, false)), /*#__PURE__*/_jsxDEV("th", {
+                key: "actions-head",
+                className: "bg-gray-100 p-2 text-left text-sm font-medium text-slate-700",
+                children: "Actions"
+              }, void 0, false)]
+            }, void 0, true)
+          }, void 0, false), /*#__PURE__*/_jsxDEV("tbody", {
+            children: (() => {
+              const allRows = sheets[selectedSheet].rows.filter(r => filterRow(r));
+              const total = allRows.length;
+              const pages = Math.max(1, Math.ceil(total / pageSize));
+              const curPage = Math.min(page, pages);
+              const start = (curPage - 1) * pageSize;
+              const paginated = allRows.slice(start, start + pageSize);
+              return paginated.map((r, idx) => {
+                const ri = start + idx;
+                return /*#__PURE__*/_jsxDEV("tr", {
+                  key: `table-row-${ri}`,
+                  className: `border-b hover:bg-gray-50 ${dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? 'bg-yellow-50' : ''}`,
+                  children: [sheets[selectedSheet].columns.map((c, ci) => /*#__PURE__*/_jsxDEV("td", {
+                    key: `cell-${ri}-${c}-${ci}`,
+                    className: "p-2",
+                    children: /*#__PURE__*/_jsxDEV("input", {
+                      "aria-label": `Edit ${c}`,
+                      className: "w-full rounded border border-slate-300 p-1.5 text-sm",
+                      value: r[c],
+                      onChange: e => updateCell(selectedSheet, ri, c, e.target.value)
+                    }, void 0, false)
+                  }, ci, false)), /*#__PURE__*/_jsxDEV("td", {
+                    key: `actions-${ri}`,
+                    className: "p-2",
+                    children: dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? /*#__PURE__*/_jsxDEV("div", {
+                      className: "flex gap-2",
+                      children: [/*#__PURE__*/_jsxDEV("button", {
+                        key: `save-row-${ri}`,
+                        "aria-label": `Save row ${ri + 1}`,
+                        onClick: () => saveRow(selectedSheet, ri),
+                        className: "rounded bg-green-500 px-2 py-1 text-xs font-medium text-white",
+                        children: "Save"
+                      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+                        key: `undo-row-${ri}`,
+                        "aria-label": `Undo row ${ri + 1}`,
+                        onClick: () => undoRow(selectedSheet, ri),
+                        className: "rounded bg-gray-300 px-2 py-1 text-xs font-medium text-black",
+                        children: "Undo"
+                      }, void 0, false)]
+                    }, void 0, true) : /*#__PURE__*/_jsxDEV("div", {
+                      className: "text-xs text-gray-500",
+                      children: "No changes"
+                    }, void 0, false)
+                  }, void 0, false)]
+                }, ri, true);
+              });
+            })()
+          }, void 0, false)]
+        }, void 0, true)
+      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+        key: "table-pagination",
+        className: "mt-3 flex items-center justify-between",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          key: "page-indicator",
+          className: "text-sm text-slate-600",
+          children: [/*#__PURE__*/_jsxDEV("span", {
+            key: "page-label",
+            children: "Page "
+          }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+            key: "page-number",
+            children: page
+          }, void 0, false)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          key: "pagination-controls",
+          className: "flex items-center gap-2",
+          children: [/*#__PURE__*/_jsxDEV("button", {
+            key: "page-prev",
+            onClick: () => setPage(p => Math.max(1, p - 1)),
+            className: "rounded border border-slate-300 bg-white px-2 py-1 text-sm",
+            children: "Prev"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            key: "page-next",
+            onClick: () => setPage(p => p + 1),
+            className: "rounded border border-slate-300 bg-white px-2 py-1 text-sm",
+            children: "Next"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
+            key: "page-size",
+            value: pageSize,
+            onChange: e => setPageSize(parseInt(e.target.value)),
+            className: "rounded border border-slate-300 bg-white p-1 text-sm",
+            children: [/*#__PURE__*/_jsxDEV("option", {
+              key: "rows-5",
+              value: 5,
+              children: "5"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
+              key: "rows-10",
+              value: 10,
+              children: "10"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
+              key: "rows-25",
+              value: 25,
+              children: "25"
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true)]
+      }, void 0, true), showNewModal && selectedSheet && /*#__PURE__*/_jsxDEV("div", {
+        key: "new-entry-modal",
+        className: "fixed inset-0 flex items-center justify-center bg-black/40",
+        children: /*#__PURE__*/_jsxDEV("div", {
+          className: "w-2/3 rounded-lg bg-white p-6",
+          children: [/*#__PURE__*/_jsxDEV("h3", {
+            key: "new-entry-title",
+            className: "mb-3 text-lg font-semibold",
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              key: "new-entry-label",
+              children: "Add New Entry — "
+            }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+              key: "new-entry-sheet",
+              children: selectedSheet
+            }, void 0, false)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            key: "new-entry-grid",
+            className: "grid max-h-72 grid-cols-2 gap-3 overflow-auto mb-4",
+            children: sheets[selectedSheet].columns.map((col, ci) => /*#__PURE__*/_jsxDEV("div", {
+              key: `new-entry-${col}-${ci}`,
+              children: [/*#__PURE__*/_jsxDEV("label", {
+                key: `label-${col}`,
+                className: "text-sm text-gray-600",
+                children: col
+              }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+                key: `input-${col}`,
+                className: "mt-1 w-full rounded border border-slate-300 p-2 text-sm",
+                value: newEntryData[col] || '',
+                onChange: e => setNewEntryData(prev => ({
+                  ...prev,
+                  [col]: e.target.value
+                }))
+              }, void 0, false)]
+            }, ci, true))
+          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+            key: "new-entry-actions",
+            className: "flex justify-end gap-2",
+            children: [/*#__PURE__*/_jsxDEV("button", {
+              key: "cancel-new-entry",
+              className: "rounded border border-slate-300 px-3 py-2",
+              onClick: () => setShowNewModal(false),
+              children: "Cancel"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              key: "submit-new-entry",
+              className: "rounded bg-blue-600 px-3 py-2 text-white",
+              onClick: () => {
+                setSheets(prev => {
+                  const copy = JSON.parse(JSON.stringify(prev));
+                  copy[selectedSheet].rows.push(Object.fromEntries(sheets[selectedSheet].columns.map(c => [c, newEntryData[c] || ''])));
+                  const newIndex = copy[selectedSheet].rows.length - 1;
+                  setDirtyRows(drPrev => {
+                    const copyDr = JSON.parse(JSON.stringify(drPrev || {}));
+                    copyDr[selectedSheet] = copyDr[selectedSheet] || {};
+                    copyDr[selectedSheet][newIndex] = true;
+                    return copyDr;
+                  });
+                  return copy;
+                });
+                setShowNewModal(false);
+                setTimeout(() => {
+                  try {
+                    updateCharts();
+                  } catch (e) {}
+                }, 200);
+              },
+              children: "Add Entry"
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true)
+      }, void 0, false)]
+    }, void 0, true)
+  });
+
+  const analyticsView = renderAppShell({
+    title: 'Analytics',
+    actions: [/*#__PURE__*/_jsxDEV("button", {
+      key: "analytics-refresh",
+      onClick: () => renderCharts(),
+      className: "rounded bg-[#00A3E0] px-3 py-2 text-sm font-medium text-white",
+      children: "Refresh Charts"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+      key: "analytics-pdf",
+      onClick: downloadAnalyticsPDF,
+      className: "rounded bg-[#0C2340] px-3 py-2 text-sm font-medium text-white",
+      children: "Download PDF"
+    }, void 0, false)],
+    content: /*#__PURE__*/_jsxDEV("div", {
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        className: "mb-4 grid grid-cols-3 gap-4",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          className: "card rounded p-4",
+          children: [/*#__PURE__*/_jsxDEV("h3", {
+            className: "mb-2 font-semibold text-slate-700",
+            children: "Daily Movement Trends"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+            id: "lineChart2",
+            className: "chart-canvas"
+          }, void 0, false)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "card rounded p-4",
+          children: [/*#__PURE__*/_jsxDEV("h3", {
+            className: "mb-2 font-semibold text-slate-700",
+            children: "Occupancy Rate by Block"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+            id: "barChart2",
+            className: "chart-canvas"
+          }, void 0, false)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "card rounded p-4",
+          children: [/*#__PURE__*/_jsxDEV("h3", {
+            className: "mb-2 font-semibold text-slate-700",
+            children: "Rent Payment Status Breakdown"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+            id: "pieChart2",
+            className: "chart-canvas"
+          }, void 0, false)]
+        }, void 0, true)]
+      }, void 0, true)]
+    }, void 0, true)
+  });
+
+  const reportsView = renderAppShell({
+    title: 'Reports',
+    actions: [/*#__PURE__*/_jsxDEV("button", {
+      key: "reports-download",
+      onClick: downloadAnalyticsPDF,
+      className: "rounded bg-[#0C2340] px-3 py-2 text-sm font-medium text-white",
+      children: "Download Analytics Summary PDF"
+    }, void 0, false)],
+    content: /*#__PURE__*/_jsxDEV("div", {
+      className: "card rounded p-4",
+      children: [/*#__PURE__*/_jsxDEV("h3", {
+        key: "reports-title",
+        className: "font-semibold text-slate-700",
+        children: "Reports & Exports"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+        key: "reports-action",
+        className: "mt-3",
+        children: /*#__PURE__*/_jsxDEV("button", {
+          onClick: downloadAnalyticsPDF,
+          className: "px-3 py-2 rounded text-white",
+          style: {
+            background: NAVY
+          },
+          children: "Download Analytics Summary PDF"
+        }, void 0, false)
+      }, void 0, false)]
+    }, void 0, true)
+  });
+
+  const aboutView = renderAppShell({
+    title: 'About',
+    actions: [],
+    content: /*#__PURE__*/_jsxDEV("div", {
+      className: "card rounded p-4",
+      children: [/*#__PURE__*/_jsxDEV("h3", {
+        key: "about-title",
+        className: "font-semibold text-slate-700",
+        children: "About — B2B Executive Insights"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+        key: "about-copy",
+        className: "mt-2 text-sm text-gray-700",
+        children: "Automated Gate Pass and Housing/Rent tracking optimizes mill supply chain throughput, enhances security compliance, and improves estate revenue management. This portal centralizes operational registers, enables quick analytics, and offers exportable reports for stakeholders."
+      }, void 0, false)]
+    }, void 0, true)
+  });
+
+  const settingsView = renderAppShell({
+    title: 'Settings',
+    actions: [],
+    content: /*#__PURE__*/_jsxDEV("div", {
+      className: "card rounded p-4",
+      children: [/*#__PURE__*/_jsxDEV("h3", {
+        className: "font-semibold text-slate-700",
+        children: "Settings"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+        key: "settings-text",
+        className: "mt-2 text-sm",
+        children: [/*#__PURE__*/_jsxDEV("span", {
+          key: "settings-copy",
+          children: "Theme and preferences (demo). Primary color: "
+        }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+          key: "settings-color",
+          style: {
+            color: PRIMARY
+          },
+          children: PRIMARY
+        }, void 0, false)]
+      }, void 0, true)]
+    }, void 0, true)
+  });
+
   return activeView === 'dashboard' ? dashboardView : activeView === 'upload' ? uploadView : activeView === 'table' ? tableView : activeView === 'analytics' ? analyticsView : activeView === 'reports' ? reportsView : activeView === 'about' ? aboutView : activeView === 'settings' ? settingsView : dashboardView;
 }
 
-// Chart rendering using simple heuristics
-function renderCharts() {
-  const daily = {};
-  const occupancy = {};
-  const rentStatus = {
-    Paid: 0,
-    Pending: 0,
-    Overdue: 0
-  };
-  Object.keys(window.sheets || sheets || {}).forEach(name => {
-    const s = (window.sheets || sheets)[name];
-    s.rows.forEach(r => {
-      const din = r['Date/Time In'] || r['Date Time In'] || r['Entry Time'] || r['EntryDate'] || '';
-      const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Exit Time'] || '';
-      if (din) {
-        const d = ('' + din).split(' ')[0];
-        daily[d] = daily[d] || {
-          in: 0,
-          out: 0
-        };
-        daily[d].in += 1;
-      }
-      if (dout) {
-        const d = ('' + dout).split(' ')[0];
-        daily[d] = daily[d] || {
-          in: 0,
-          out: 0
-        };
-        daily[d].out += 1;
-      }
-      const block = r['Block'] || r['Quarter #'] || r['Block #'] || r['Block Name'] || '';
-      if (block) occupancy[block] = (occupancy[block] || 0) + 1;
-      Object.values(r).forEach(v => {
-        const text = ('' + v).toLowerCase();
-        const m = ('' + v).match(/\d+[\d,]*/);
-        if (m) {
-          const amt = parseFloat(m[0].replace(/,/g, ''));
-          if (!isNaN(amt)) {
-            if (text.includes('paid')) rentStatus.Paid += amt;else if (text.includes('overdue') || text.includes('due')) rentStatus.Overdue += amt;else rentStatus.Pending += amt;
-          }
-        }
-      });
-    });
-  });
-  renderChartsFromData({
-    daily,
-    occupancy,
-    rentStatus
-  });
-}
-function renderChartsFromData({
-  daily = {},
-  occupancy = {},
-  rentStatus = {}
-}) {
-  try {
-    const lineEl = document.getElementById('lineChart') || document.getElementById('lineChart2');
-    if (lineEl) {
-      try {
-        if (window._lineChart) window._lineChart.destroy();
-      } catch (e) {}
-      const labels = Object.keys(daily).sort();
-      const ins = labels.map(d => daily[d].in || 0);
-      const outs = labels.map(d => daily[d].out || 0);
-      window._lineChart = new Chart(lineEl.getContext('2d'), {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Entries',
-            data: ins,
-            borderColor: PRIMARY,
-            backgroundColor: 'rgba(0,163,224,0.08)',
-            fill: true
-          }, {
-            label: 'Exits',
-            data: outs,
-            borderColor: NAVY,
-            backgroundColor: 'rgba(12,35,64,0.06)',
-            fill: true
-          }]
-        }
-      });
-    }
-    const barEl = document.getElementById('barChart') || document.getElementById('barChart2');
-    if (barEl) {
-      try {
-        if (window._barChart) window._barChart.destroy();
-      } catch (e) {}
-      const bLabels = Object.keys(occupancy);
-      const bVals = bLabels.map(l => occupancy[l] || 0);
-      window._barChart = new Chart(barEl.getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels: bLabels,
-          datasets: [{
-            label: 'Occupancy',
-            data: bVals,
-            backgroundColor: bLabels.map((_, i) => i % 2 ? PRIMARY : '#1E90FF')
-          }]
-        },
-        options: {
-          indexAxis: 'y'
-        }
-      });
-    }
-    const pieEl = document.getElementById('pieChart') || document.getElementById('pieChart2');
-    if (pieEl) {
-      try {
-        if (window._pieChart) window._pieChart.destroy();
-      } catch (e) {}
-      const pVals = [rentStatus.Paid || 0, rentStatus.Pending || 0, rentStatus.Overdue || 0];
-      window._pieChart = new Chart(pieEl.getContext('2d'), {
-        type: 'doughnut',
-        data: {
-          labels: ['Paid', 'Pending', 'Overdue'],
-          datasets: [{
-            data: pVals,
-            backgroundColor: [PRIMARY, '#FFD36E', '#FF7A7A']
-          }]
-        }
-      });
-    }
-  } catch (e) {
-    console.warn('renderChartsFromData error', e);
-  }
-}
-function updateCharts() {
-  const daily = {};
-  const occupancy = {};
-  const rentStatus = {
-    Paid: 0,
-    Pending: 0,
-    Overdue: 0
-  };
-  Object.keys(sheets).forEach(name => {
-    const s = sheets[name];
-    const lower = name.toLowerCase();
-    s.rows.forEach(r => {
-      // dates
-      const din = r['Date/Time In'] || r['Date Time In'] || r['Entry Time'] || r['EntryDate'] || '';
-      const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Exit Time'] || '';
-      if (din) {
-        const d = ('' + din).split(' ')[0];
-        daily[d] = daily[d] || {
-          in: 0,
-          out: 0
-        };
-        daily[d].in += 1;
-      }
-      if (dout) {
-        const d = ('' + dout).split(' ')[0];
-        daily[d] = daily[d] || {
-          in: 0,
-          out: 0
-        };
-        daily[d].out += 1;
-      }
-      // occupancy blocks
-      const block = r['Block'] || r['Quarter #'] || r['Block #'] || r['Block Name'] || '';
-      if (block) occupancy[block] = (occupancy[block] || 0) + 1;
-      // rent parsing
-      Object.values(r).forEach(v => {
-        const sVal = ('' + v).toLowerCase();
-        const m = ('' + v).match(/\d+[\d,]*/);
-        if (m) {
-          const amt = parseFloat(m[0].replace(/,/g, ''));
-          if (!isNaN(amt)) {
-            if (sVal.includes('paid')) rentStatus.Paid += amt;else if (sVal.includes('overdue') || sVal.includes('due')) rentStatus.Overdue += amt;else rentStatus.Pending += amt;
-          }
-        }
-      });
-    });
-  });
-  renderChartsFromData({
-    daily,
-    occupancy,
-    rentStatus
-  });
-}
-
-// Recompute charts when sheets change
-setTimeout(() => updateCharts(), 800);
 function downloadAllSheets() {
   try {
     const wb = XLSX.utils.book_new();
@@ -1363,14 +1799,7 @@ try {
     })();
   } catch (err) {}
 }
-// Initial charts
-setTimeout(() => {
-  try {
-    renderCharts();
-  } catch (e) {
-    console.warn(e);
-  }
-}, 600);
+// Initial charts are triggered from the App state lifecycle
 </script>
   </body>
 </html>
