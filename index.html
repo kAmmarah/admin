@@ -14,13 +14,28 @@
       .brand-bg { background-color: #00A3E0; }
       .nav-bg { background-color: #0C2340; }
       .accent-bg { background-color: #F8FAFC; }
-      .card { background: #ffffff; box-shadow: 0 1px 3px rgba(2,6,23,0.08); }
+      .card { background: #ffffff; border: 1px solid #edf2f7; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05); border-radius: 18px; }
       .clickable { cursor: pointer; }
       a.skip-link { position: absolute; left: -999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
       a.skip-link:focus { left: 10px; top: 10px; width: auto; height: auto; padding: 8px 12px; background: #000; color: #fff; z-index: 9999; }
       :focus { outline: none; }
       :focus-visible { outline: 3px solid rgba(0,163,224,0.6); outline-offset: 2px; }
-      .nav-button[aria-current="page"] { background: #ffffff; color: #000; }
+      .nav-button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0.7rem 0.8rem;
+        border-radius: 12px;
+        font-weight: 600;
+        color: rgba(255,255,255,0.8);
+        transition: all 0.2s ease;
+      }
+      .nav-button:hover {
+        background: rgba(255,255,255,0.08);
+        color: #ffffff;
+      }
+      .nav-button[aria-current="page"] { background: #ffffff; color: #0f172a; }
+      .dashboard-shell { background: linear-gradient(180deg, #f6f9fc 0%, #f3f7fb 100%); }
     </style>
       <!-- Local vendored libraries (fallback to CDN if unavailable) -->
       <script src="/assets/libs/react.development.js"></script>
@@ -529,196 +544,144 @@ function App() {
     }, void 0, true)
   }, void 0, false);
   const kpis = generateKPIs();
-  return /*#__PURE__*/_jsxDEV("div", {
-    className: "min-h-screen flex",
-    children: [/*#__PURE__*/_jsxDEV("aside", {
-      className: (sidebarCollapsed ? "w-20 p-3 nav-bg text-white min-h-screen transition-all duration-200" : "w-72 p-4 nav-bg text-white min-h-screen transition-all duration-200"),
-      role: "navigation",
-      "aria-label": "Main sidebar",
-      children: [/*#__PURE__*/_jsxDEV("div", {
-        className: "mb-5 flex items-center justify-start gap-3",
-        children: sidebarCollapsed ? /*#__PURE__*/_jsxDEV("div", {
-          className: "w-full flex items-center justify-center",
-          children: /*#__PURE__*/_jsxDEV("img", {
-            src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
-            alt: "Gadoon",
-            style: {
-              height: 28,
-              width: 28,
-              borderRadius: 6
-            }
-          }, void 0, false)
-        }, void 0, false) : [/*#__PURE__*/_jsxDEV("img", {
-          src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
-          alt: "Gadoon Textile Mills Limited",
-          style: {
-            height: 26,
-            width: 26,
-            borderRadius: 6
-          }
-        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "flex flex-col leading-tight",
-          children: [/*#__PURE__*/_jsxDEV("h1", {
-            className: "text-2xl font-extrabold leading-none",
+  const dashboardView = /*#__PURE__*/_jsxDEV("div", {
+    className: "min-h-screen bg-[#edf3f8] p-0",
+    children: /*#__PURE__*/_jsxDEV("div", {
+      className: "mx-auto flex h-screen max-w-[1500px] overflow-hidden bg-[#f6f7fb] shadow-[0_20px_50px_rgba(15,23,42,0.12)]",
+      children: [/*#__PURE__*/_jsxDEV("aside", {
+        className: "w-[320px] bg-[#081d3a] px-5 py-6 text-white",
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          className: "mb-7 flex items-center gap-3 px-2",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            className: "flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white/10",
+            children: /*#__PURE__*/_jsxDEV("img", {
+              id: "appLogo",
+              src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
+              alt: "Gadoon Textile Mills Limited",
+              style: {
+                height: 30,
+                width: 30,
+                objectFit: 'cover',
+                borderRadius: 8
+              },
+              onError: e => e.target.style.display = 'none'
+            }, void 0, false)
+          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+            className: "flex flex-col leading-none",
             children: [/*#__PURE__*/_jsxDEV("span", {
-              className: "brand-cyan",
+              className: "text-[28px] font-extrabold tracking-tight text-white",
               children: "Gadoon"
-            }, void 0, false), " Textile Mills Limited"]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "text-xs mt-1 text-gray-300",
-            children: "Admin Portal"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+              className: "mt-1 text-[13px] text-white/70",
+              children: "Textile Mills Limited"
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "mb-5 px-2",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            className: "mb-3 text-[13px] font-medium text-white/70",
+            children: "Module"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+            className: "grid grid-cols-2 gap-2",
+            children: [/*#__PURE__*/_jsxDEV("button", {
+              onClick: () => setModule('gate'),
+              className: `rounded-xl border px-3 py-3 text-left text-[15px] font-medium transition ${module === 'gate' ? 'border-white/30 bg-white/10 text-white shadow-inner' : 'border-white/20 bg-transparent text-white/70 hover:bg-white/5'}`,
+              children: "Gate System"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              onClick: () => setModule('colony'),
+              className: `rounded-xl border px-3 py-3 text-left text-[15px] font-medium transition ${module === 'colony' ? 'border-white/30 bg-white/10 text-white shadow-inner' : 'border-white/20 bg-transparent text-white/70 hover:bg-white/5'}`,
+              children: "Colony/Rent"
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "px-2",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            className: "mb-3 text-[13px] font-medium text-white/70",
+            children: "Sheets"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+            className: "text-[13px] text-white/60",
+            children: Object.keys(sheets).length ? Object.keys(sheets).slice(0, 2).join(', ') : 'No sheets loaded'
           }, void 0, false)]
-        }, void 0, true)]
-      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "mb-4",
-        children: [/*#__PURE__*/_jsxDEV("div", {
-          className: "mb-2 text-sm",
-          children: "Module"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "flex space-x-2",
+        }, void 0, true), /*#__PURE__*/_jsxDEV("nav", {
+          className: "mt-6 space-y-2 px-2",
+          "aria-label": "Sidebar navigation",
           children: [/*#__PURE__*/_jsxDEV("button", {
-            onClick: () => setModule('gate'),
-            className: `px-3 py-1 rounded ${module === 'gate' ? 'bg-white text-black' : 'bg-transparent border text-white'}`,
-            children: "Gate System"
+            onClick: () => setActiveView('dashboard'),
+            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'dashboard' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              children: "▣"
+            }, void 0, false), "Dashboard"]
           }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            onClick: () => setModule('colony'),
-            className: `px-3 py-1 rounded ${module === 'colony' ? 'bg-white text-black' : 'bg-transparent border text-white'}`,
-            children: "Colony/Rent"
+            onClick: () => setActiveView('table'),
+            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'table' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              children: "🗂"
+            }, void 0, false), "Upload Excel"]
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            onClick: () => setActiveView('analytics'),
+            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'analytics' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              children: "📊"
+            }, void 0, false), "Excel Data Table"]
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            onClick: () => setActiveView('reports'),
+            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'reports' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              children: "📈"
+            }, void 0, false), "Analytics"]
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            onClick: () => setActiveView('about'),
+            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'about' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              children: "ℹ"
+            }, void 0, false), "Reports"]
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            onClick: () => setActiveView('settings'),
+            className: `flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${activeView === 'settings' ? 'bg-white text-[#0d1d37] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]' : 'text-white/75 hover:bg-white/5'}`,
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              children: "⚙"
+            }, void 0, false), "Settings"]
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            onClick: handleLogout,
+            className: "mt-4 flex w-full items-center gap-3 rounded-xl bg-transparent px-3 py-3 text-left text-[15px] font-medium text-[#ff817d] hover:bg-white/5",
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              children: "⎋"
+            }, void 0, false), "Logout"]
           }, void 0, false)]
-        }, void 0, true)]
-      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "mb-4",
-        children: [/*#__PURE__*/_jsxDEV("div", {
-          className: "mb-2 text-sm",
-          children: "Sheets"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "flex flex-col space-y-1",
-          children: [Object.keys(sheets).length === 0 && /*#__PURE__*/_jsxDEV("div", {
-            className: "text-xs text-gray-300",
-            children: "No sheets loaded"
-          }, void 0, false), Object.keys(sheets).map(name => /*#__PURE__*/_jsxDEV("button", {
-            onClick: () => {
-              setSelectedSheet(name);
-              setActiveView('table');
-            },
-            className: `text-left px-2 py-1 rounded ${selectedSheet === name ? 'bg-white text-black' : ''}`,
-            children: name
-          }, name, false))]
-        }, void 0, true)]
-      }, void 0, true), /*#__PURE__*/_jsxDEV("nav", {
-        className: "space-y-2",
-        "aria-label": "Primary",
-        children: [/*#__PURE__*/_jsxDEV("button", {
-          onClick: () => setActiveView('dashboard'),
-          "aria-current": activeView === 'dashboard' ? 'page' : undefined,
-          className: "w-full text-left nav-button",
-          children: "📊 Dashboard"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-          onClick: () => setActiveView('upload'),
-          "aria-current": activeView === 'upload' ? 'page' : undefined,
-          className: "w-full text-left nav-button",
-          children: "📤 Upload Excel"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-          onClick: () => setActiveView('table'),
-          "aria-current": activeView === 'table' ? 'page' : undefined,
-          className: "w-full text-left nav-button",
-          children: "📋 Excel Data Table"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-          onClick: () => setActiveView('analytics'),
-          "aria-current": activeView === 'analytics' ? 'page' : undefined,
-          className: "w-full text-left nav-button",
-          children: "📈 Analytics"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-          onClick: () => setActiveView('reports'),
-          "aria-current": activeView === 'reports' ? 'page' : undefined,
-          className: "w-full text-left nav-button",
-          children: "📄 Reports"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-          onClick: () => setActiveView('about'),
-          "aria-current": activeView === 'about' ? 'page' : undefined,
-          className: "w-full text-left nav-button",
-          children: "ℹ️ About"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-          onClick: () => setActiveView('settings'),
-          "aria-current": activeView === 'settings' ? 'page' : undefined,
-          className: "w-full text-left nav-button",
-          children: "⚙️ Settings"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-          onClick: handleLogout,
-          className: "w-full text-left text-red-300",
-          children: "🚪 Logout"
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "mt-auto px-2 pt-8 text-[12px] text-white/60",
+          children: "© 2016-2026 Gadoon Textile Mills Limited. All Rights Reserved. | Version 2.4.0"
         }, void 0, false)]
       }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "mt-6 text-xs text-gray-300",
-        children: "© 2016-2026 Gadoon Textile Mills Limited. All Rights Reserved. | Version 2.4.0 (Enterprise Build)"
-      }, void 0, false)]
-    }, void 0, true), /*#__PURE__*/_jsxDEV("main", {
-      id: "main-content",
-      className: "flex-1 p-6",
-      tabIndex: 0,
-      role: "main",
-      children: [/*#__PURE__*/_jsxDEV("header", {
-        className: "flex items-center justify-between mb-6",
+        className: "flex min-w-0 flex-1 flex-col bg-[#f5f7fa]",
         children: [/*#__PURE__*/_jsxDEV("div", {
-          className: "flex items-center gap-4",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "flex items-center gap-3",
-                children: [/*#__PURE__*/_jsxDEV("img", {
-                  id: "appLogo",
-                  src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
-                  alt: "Gadoon Textile Mills Limited",
-                  style: {
-                    height: 32,
-                    width: 32,
-                    borderRadius: 6,
-                    marginRight: 0
-                  },
-                  onError: e => e.target.style.display = 'none'
-                }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                  className: "flex flex-col leading-tight",
-                  children: [/*#__PURE__*/_jsxDEV("span", {
-                    className: "text-xl font-semibold",
-                    children: "Gadoon Textile Mills Limited"
-                  }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
-                    className: "text-xs text-gray-500",
-                    children: activeView === 'dashboard' ? 'Dashboard' : activeView.charAt(0).toUpperCase() + activeView.slice(1)
-                  }, void 0, false)]
-                }, void 0, true)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("button", {
-            onClick: () => setSidebarCollapsed(!sidebarCollapsed),
-            className: "ml-2 px-2 py-1 border rounded text-sm text-gray-600",
-            title: "Toggle sidebar",
-            children: sidebarCollapsed ? '▷' : '◁'
+          className: "flex items-center justify-between border-b border-slate-200 bg-[#f5f7fa] px-6 py-5",
+          children: [/*#__PURE__*/_jsxDEV("h1", {
+            className: "text-[34px] font-bold tracking-[-0.04em] text-slate-800",
+            children: "Dashboard"
           }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-            className: "ml-4 flex items-center gap-4",
-            children: [/*#__PURE__*/_jsxDEV("div", {
-              className: "text-center",
-              children: [/*#__PURE__*/_jsxDEV("div", {
-                className: "text-xs text-gray-500",
-                children: "Total"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                className: "text-lg font-bold",
-                children: kpis ? kpis.totalGateToday : 0
-              }, void 0, false)]
-            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-              className: "text-center",
-              children: [/*#__PURE__*/_jsxDEV("div", {
-                className: "text-xs text-gray-500",
-                children: "Inside"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                className: "text-lg font-bold",
-                children: kpis ? kpis.activeVehicles : 0
-              }, void 0, false)]
-            }, void 0, false)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "flex items-center gap-2",
-            onDragOver: e => e.preventDefault(),
-            onDrop: handleFileDrop,
+            className: "flex items-center gap-3",
             children: [/*#__PURE__*/_jsxDEV("button", {
               onClick: triggerUpload,
-              className: "px-3 py-1 rounded bg-white border",
+              className: "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50",
               children: "Upload Data"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              onClick: downloadAttachedSample,
+              className: "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50",
+              children: "Download Attached Sample"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              className: "flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm",
+              children: [/*#__PURE__*/_jsxDEV("span", {
+                className: "text-[12px] font-medium text-slate-500",
+                children: "Module:"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+                className: "inline-flex h-3.5 w-3.5 rounded-full bg-[#1e9de6] shadow-[0_0_0_4px_rgba(30,157,230,0.15)]",
+                title: module
+              }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+                className: "text-[15px] font-semibold text-slate-700",
+                children: module === 'gate' ? 'Gate System' : 'Colony/Rent'
+              }, void 0, false)]
+            }, void 0, true), /*#__PURE__*/_jsxDEV("input", {
               id: "hiddenUploader",
               type: "file",
               accept: ".xlsx,.xls",
@@ -726,527 +689,496 @@ function App() {
               style: {
                 display: 'none'
               }
-            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-              onClick: downloadAttachedSample,
-              className: "px-3 py-1 rounded bg-white border",
-              children: "Download Attached Sample"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-              className: "text-xs text-gray-400",
-              children: "Or drag & drop an Excel file here"
             }, void 0, false)]
           }, void 0, true)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "flex items-center space-x-3",
+        }, void 0, true), /*#__PURE__*/_jsxDEV("main", {
+          className: "flex-1 overflow-auto px-6 py-6",
           children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "text-sm",
-            children: ["Module: ", /*#__PURE__*/_jsxDEV("strong", {
-              children: module === 'gate' ? 'Gate System' : 'Colony/Rent'
-            }, void 0, false)]
+            className: "grid grid-cols-4 gap-4",
+            children: [/*#__PURE__*/_jsxDEV("div", {
+              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+              children: [/*#__PURE__*/_jsxDEV("div", {
+                className: "mb-3 text-sm font-medium text-slate-500",
+                children: "Total Gate Entries"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+                className: "text-[40px] font-bold leading-none text-slate-800",
+                children: String(kpis.totalGateToday || 0)
+              }, void 0, false)]
+            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+              children: [/*#__PURE__*/_jsxDEV("div", {
+                className: "mb-3 text-sm font-medium text-slate-500",
+                children: "Active Vehicles Inside"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+                className: "text-[40px] font-bold leading-none text-slate-800",
+                children: String(kpis.activeVehicles || 0)
+              }, void 0, false)]
+            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+              children: [/*#__PURE__*/_jsxDEV("div", {
+                className: "mb-3 text-sm font-medium text-slate-500",
+                children: "Total Colony Residents"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+                className: "text-[40px] font-bold leading-none text-slate-800",
+                children: String(kpis.totalResidents || 0)
+              }, void 0, false)]
+            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+              children: [/*#__PURE__*/_jsxDEV("div", {
+                className: "mb-3 text-sm font-medium text-slate-500",
+                children: "Rent Collected"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+                className: "text-[40px] font-bold leading-none text-slate-800",
+                children: `PKR ${Number(kpis.rentCollected || 0).toLocaleString()}`
+              }, void 0, false)]
+            }, void 0, true)]
           }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "p-2 rounded-full",
-            style: {
-              background: PRIMARY
-            }
+            className: "mt-6 grid grid-cols-3 gap-4",
+            children: [/*#__PURE__*/_jsxDEV("div", {
+              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+              children: [/*#__PURE__*/_jsxDEV("h3", {
+                className: "mb-3 text-[19px] font-semibold text-slate-700",
+                children: "Daily Movement Trends"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+                id: "lineChart",
+                className: "chart-canvas h-52 w-full"
+              }, void 0, false)]
+            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+              children: [/*#__PURE__*/_jsxDEV("h3", {
+                className: "mb-3 text-[19px] font-semibold text-slate-700",
+                children: "Occupancy Rate by Block"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+                id: "barChart",
+                className: "chart-canvas h-52 w-full"
+              }, void 0, false)]
+            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+              className: "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+              children: [/*#__PURE__*/_jsxDEV("h3", {
+                className: "mb-3 text-[19px] font-semibold text-slate-700",
+                children: "Rent Payment Status"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+                id: "pieChart",
+                className: "chart-canvas h-52 w-full"
+              }, void 0, false)]
+            }, void 0, true)]
+          }, void 0, true)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+          className: "flex items-center justify-between border-t border-slate-200 bg-white/70 px-6 py-4 text-[12px] text-slate-500",
+          children: [/*#__PURE__*/_jsxDEV("span", {
+            children: "© 2016-2026 Gadoon Textile Mills Limited. All Rights Reserved."
+          }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+            children: "Version 2.4.0 (Enterprise Build)"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+            className: "flex h-8 w-8 items-center justify-center rounded-full bg-[#c29df2] text-[12px] font-bold text-white",
+            children: "A"
           }, void 0, false)]
         }, void 0, true)]
-      }, void 0, true), Object.keys(sheets).length > 0 && /*#__PURE__*/_jsxDEV("div", {
-        className: "mb-4 flex items-center gap-2 overflow-x-auto",
-        children: Object.keys(sheets).map(name => /*#__PURE__*/_jsxDEV("button", {
-          onClick: () => {
-            setSelectedSheet(name);
-            setActiveView('table');
-          },
-          className: `px-3 py-1 rounded ${selectedSheet === name ? 'bg-white text-black' : 'bg-transparent text-gray-700 border'}`,
+      }, void 0, true)]
+    }, void 0, false)
+  }, void 0, false);
+  const uploadView = /*#__PURE__*/_jsxDEV("div", {
+    className: "card p-6 rounded",
+    children: [/*#__PURE__*/_jsxDEV("h3", {
+      className: "font-semibold mb-3",
+      children: "Upload Excel Workbook"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      className: "mb-4",
+      children: /*#__PURE__*/_jsxDEV("input", {
+        "aria-label": "Upload Excel workbook",
+        type: "file",
+        accept: ".xlsx,.xls",
+        onChange: handleFile
+      }, void 0, false)
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      className: "flex space-x-2",
+      children: /*#__PURE__*/_jsxDEV("button", {
+        onClick: downloadSample,
+        "aria-label": "Download sample excel template",
+        className: "px-3 py-2 rounded text-white",
+        style: {
+          background: PRIMARY
+        },
+        children: "Download Sample Excel Template"
+      }, void 0, false)
+    }, void 0, false)]
+  }, void 0, true);
+  const tableView = /*#__PURE__*/_jsxDEV("div", {
+    children: [/*#__PURE__*/_jsxDEV("div", {
+      className: "flex items-center gap-3 mb-3",
+      children: [/*#__PURE__*/_jsxDEV("label", {
+        className: "text-sm",
+        children: "Select Sheet:"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
+        "aria-label": "Select sheet",
+        value: selectedSheet || '',
+        onChange: e => setSelectedSheet(e.target.value),
+        className: "p-2 border rounded",
+        children: Object.keys(sheets).map(name => /*#__PURE__*/_jsxDEV("option", {
+          value: name,
           children: name
         }, name, false))
-      }, void 0, false), activeView === 'dashboard' && /*#__PURE__*/_jsxDEV("div", {
-        children: [/*#__PURE__*/_jsxDEV("div", {
-          className: "grid grid-cols-4 gap-4 mb-6",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("div", {
-              className: "text-sm text-gray-500",
-              children: "Total Gate Entries"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-              className: "text-2xl font-bold",
-              children: kpis.totalGateToday
+      }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+        "aria-label": "Search across columns",
+        placeholder: "Search across columns",
+        value: search,
+        onChange: e => setSearch(e.target.value),
+        className: "p-2 border rounded flex-1"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+        "aria-label": "Status filter",
+        placeholder: "Status filter (e.g., Paid, Gate In)",
+        value: statusFilter,
+        onChange: e => setStatusFilter(e.target.value),
+        className: "p-2 border rounded"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+        "aria-label": "Export filtered data to excel",
+        onClick: exportFiltered,
+        className: "px-3 py-2 rounded text-white",
+        style: {
+          background: PRIMARY
+        },
+        children: "Export Filtered Data.xlsx"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+        "aria-label": "Save all rows locally",
+        onClick: () => saveAll(selectedSheet),
+        className: "px-3 py-2 rounded text-white",
+        style: {
+          background: '#16a34a'
+        },
+        children: "Save All"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+        "aria-label": "Save all sheets to server (JSON only)",
+        onClick: saveToServer,
+        className: "px-3 py-2 rounded text-white",
+        style: {
+          background: NAVY
+        },
+        children: "Save JSON to Server (no Excel)"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+        "aria-label": "Load sheets from server",
+        onClick: loadFromServer,
+        className: "px-3 py-2 rounded text-gray-800",
+        style: {
+          background: '#e6edf3'
+        },
+        children: "Load from Server"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+        "aria-label": "Download all sheets",
+        onClick: downloadAllSheets,
+        className: "px-3 py-2 rounded text-white",
+        style: {
+          background: '#0b74c6'
+        },
+        children: "Download All Sheets"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+        "aria-label": "Add new entry",
+        onClick: () => {
+          setShowNewModal(true);
+          setNewEntryData({});
+        },
+        className: "px-3 py-2 rounded text-white",
+        style: {
+          background: '#0ea5a4'
+        },
+        children: "+ Add New Entry"
+      }, void 0, false)]
+    }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+      className: "mt-2 text-sm text-gray-600",
+      children: "Note: The server persists parsed sheet data as JSON only — original Excel files are not uploaded or stored on the backend."
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      className: "overflow-auto card rounded p-2",
+      children: selectedSheet && /*#__PURE__*/_jsxDEV("table", {
+        className: "min-w-full table-auto",
+        children: [/*#__PURE__*/_jsxDEV("thead", {
+          children: /*#__PURE__*/_jsxDEV("tr", {
+            children: [sheets[selectedSheet].columns.map((c, i) => /*#__PURE__*/_jsxDEV("th", {
+              className: "text-left p-2 bg-gray-100",
+              children: c
+            }, i, false)), /*#__PURE__*/_jsxDEV("th", {
+              className: "text-left p-2 bg-gray-100",
+              children: "Actions"
             }, void 0, false)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("div", {
-              className: "text-sm text-gray-500",
-              children: "Active Vehicles Inside"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-              className: "text-2xl font-bold",
-              children: kpis.activeVehicles
-            }, void 0, false)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("div", {
-              className: "text-sm text-gray-500",
-              children: "Total Colony Residents"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-              className: "text-2xl font-bold",
-              children: kpis.totalResidents
-            }, void 0, false)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("div", {
-              className: "text-sm text-gray-500",
-              children: "Rent Collected"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-              className: "text-2xl font-bold",
-              children: kpis.rentCollected
-            }, void 0, false)]
-          }, void 0, true)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "grid grid-cols-3 gap-4",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("h3", {
-              className: "font-semibold mb-2",
-              children: "Daily Movement Trends"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-              id: "lineChart",
-              className: "chart-canvas"
-            }, void 0, false)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("h3", {
-              className: "font-semibold mb-2",
-              children: "Occupancy Rate by Block"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-              id: "barChart",
-              className: "chart-canvas"
-            }, void 0, false)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("h3", {
-              className: "font-semibold mb-2",
-              children: "Rent Payment Status"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-              id: "pieChart",
-              className: "chart-canvas"
-            }, void 0, false)]
-          }, void 0, true)]
-        }, void 0, true)]
-      }, void 0, true), activeView === 'upload' && /*#__PURE__*/_jsxDEV("div", {
-        className: "card p-6 rounded",
-        children: [/*#__PURE__*/_jsxDEV("h3", {
-          className: "font-semibold mb-3",
-          children: "Upload Excel Workbook"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "mb-4",
-          children: /*#__PURE__*/_jsxDEV("input", {
-            "aria-label": "Upload Excel workbook",
-            type: "file",
-            accept: ".xlsx,.xls",
-            onChange: handleFile
-          }, void 0, false)
-        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "flex space-x-2",
-          children: /*#__PURE__*/_jsxDEV("button", {
-            onClick: downloadSample,
-            "aria-label": "Download sample excel template",
-            className: "px-3 py-2 rounded text-white",
-            style: {
-              background: PRIMARY
-            },
-            children: "Download Sample Excel Template"
-          }, void 0, false)
-        }, void 0, false)]
-      }, void 0, true), activeView === 'table' && /*#__PURE__*/_jsxDEV("div", {
-        children: [/*#__PURE__*/_jsxDEV("div", {
-          className: "flex items-center gap-3 mb-3",
-          children: [/*#__PURE__*/_jsxDEV("label", {
-            className: "text-sm",
-            children: "Select Sheet:"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
-            "aria-label": "Select sheet",
-            value: selectedSheet || '',
-            onChange: e => setSelectedSheet(e.target.value),
-            className: "p-2 border rounded",
-            children: Object.keys(sheets).map(name => /*#__PURE__*/_jsxDEV("option", {
-              value: name,
-              children: name
-            }, name, false))
-          }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-            "aria-label": "Search across columns",
-            placeholder: "Search across columns",
-            value: search,
-            onChange: e => setSearch(e.target.value),
-            className: "p-2 border rounded flex-1"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-            "aria-label": "Status filter",
-            placeholder: "Status filter (e.g., Paid, Gate In)",
-            value: statusFilter,
-            onChange: e => setStatusFilter(e.target.value),
-            className: "p-2 border rounded"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            "aria-label": "Export filtered data to excel",
-            onClick: exportFiltered,
-            className: "px-3 py-2 rounded text-white",
-            style: {
-              background: PRIMARY
-            },
-            children: "Export Filtered Data.xlsx"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            "aria-label": "Save all rows locally",
-            onClick: () => saveAll(selectedSheet),
-            className: "px-3 py-2 rounded text-white",
-            style: {
-              background: '#16a34a'
-            },
-            children: "Save All"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            "aria-label": "Save all sheets to server (JSON only)",
-            onClick: saveToServer,
-            className: "px-3 py-2 rounded text-white",
-            style: {
-              background: NAVY
-            },
-            children: "Save JSON to Server (no Excel)"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            "aria-label": "Load sheets from server",
-            onClick: loadFromServer,
-            className: "px-3 py-2 rounded text-gray-800",
-            style: {
-              background: '#e6edf3'
-            },
-            children: "Load from Server"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            "aria-label": "Download all sheets",
-            onClick: downloadAllSheets,
-            className: "px-3 py-2 rounded text-white",
-            style: {
-              background: '#0b74c6'
-            },
-            children: "Download All Sheets"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            "aria-label": "Add new entry",
-            onClick: () => {
-              setShowNewModal(true);
-              setNewEntryData({});
-            },
-            className: "px-3 py-2 rounded text-white",
-            style: {
-              background: '#0ea5a4'
-            },
-            children: "+ Add New Entry"
-          }, void 0, false)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "mt-2 text-sm text-gray-600",
-          children: "Note: The server persists parsed sheet data as JSON only — original Excel files are not uploaded or stored on the backend."
-        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "overflow-auto card rounded p-2",
-          children: selectedSheet && /*#__PURE__*/_jsxDEV("table", {
-            className: "min-w-full table-auto",
-            children: [/*#__PURE__*/_jsxDEV("thead", {
-              children: /*#__PURE__*/_jsxDEV("tr", {
-                children: [sheets[selectedSheet].columns.map((c, i) => /*#__PURE__*/_jsxDEV("th", {
-                  className: "text-left p-2 bg-gray-100",
-                  children: c
-                }, i, false)), /*#__PURE__*/_jsxDEV("th", {
-                  className: "text-left p-2 bg-gray-100",
-                  children: "Actions"
-                }, void 0, false)]
-              }, void 0, true)
-            }, void 0, false), /*#__PURE__*/_jsxDEV("tbody", {
-              children: (() => {
-                const allRows = sheets[selectedSheet].rows.filter(r => filterRow(r));
-                const total = allRows.length;
-                const pages = Math.max(1, Math.ceil(total / pageSize));
-                const curPage = Math.min(page, pages);
-                const start = (curPage - 1) * pageSize;
-                const paginated = allRows.slice(start, start + pageSize);
-                return paginated.map((r, idx) => {
-                  const ri = start + idx;
-                  return /*#__PURE__*/_jsxDEV("tr", {
-                    className: `border-b hover:bg-gray-50 ${dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? 'bg-yellow-50' : ''}`,
-                    children: [sheets[selectedSheet].columns.map((c, ci) => /*#__PURE__*/_jsxDEV("td", {
-                      className: "p-2",
-                      children: /*#__PURE__*/_jsxDEV("input", {
-                        "aria-label": `Edit ${c}`,
-                        className: "w-full border p-1 rounded",
-                        value: r[c],
-                        onChange: e => updateCell(selectedSheet, ri, c, e.target.value)
-                      }, void 0, false)
-                    }, ci, false)), /*#__PURE__*/_jsxDEV("td", {
-                      className: "p-2",
-                      children: dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? /*#__PURE__*/_jsxDEV("div", {
-                        className: "flex gap-2",
-                        children: [/*#__PURE__*/_jsxDEV("button", {
-                          "aria-label": `Save row ${ri + 1}`,
-                          onClick: () => saveRow(selectedSheet, ri),
-                          className: "px-2 py-1 bg-green-500 text-white rounded text-sm",
-                          children: "Save"
-                        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-                          "aria-label": `Undo row ${ri + 1}`,
-                          onClick: () => undoRow(selectedSheet, ri),
-                          className: "px-2 py-1 bg-gray-300 text-black rounded text-sm",
-                          children: "Undo"
-                        }, void 0, false)]
-                      }, void 0, true) : /*#__PURE__*/_jsxDEV("div", {
-                        className: "text-xs text-gray-500",
-                        children: "No changes"
-                      }, void 0, false)
+          }, void 0, true)
+        }, void 0, false), /*#__PURE__*/_jsxDEV("tbody", {
+          children: (() => {
+            const allRows = sheets[selectedSheet].rows.filter(r => filterRow(r));
+            const total = allRows.length;
+            const pages = Math.max(1, Math.ceil(total / pageSize));
+            const curPage = Math.min(page, pages);
+            const start = (curPage - 1) * pageSize;
+            const paginated = allRows.slice(start, start + pageSize);
+            return paginated.map((r, idx) => {
+              const ri = start + idx;
+              return /*#__PURE__*/_jsxDEV("tr", {
+                className: `border-b hover:bg-gray-50 ${dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? 'bg-yellow-50' : ''}`,
+                children: [sheets[selectedSheet].columns.map((c, ci) => /*#__PURE__*/_jsxDEV("td", {
+                  className: "p-2",
+                  children: /*#__PURE__*/_jsxDEV("input", {
+                    "aria-label": `Edit ${c}`,
+                    className: "w-full border p-1 rounded",
+                    value: r[c],
+                    onChange: e => updateCell(selectedSheet, ri, c, e.target.value)
+                  }, void 0, false)
+                }, ci, false)), /*#__PURE__*/_jsxDEV("td", {
+                  className: "p-2",
+                  children: dirtyRows[selectedSheet] && dirtyRows[selectedSheet][ri] ? /*#__PURE__*/_jsxDEV("div", {
+                    className: "flex gap-2",
+                    children: [/*#__PURE__*/_jsxDEV("button", {
+                      "aria-label": `Save row ${ri + 1}`,
+                      onClick: () => saveRow(selectedSheet, ri),
+                      className: "px-2 py-1 bg-green-500 text-white rounded text-sm",
+                      children: "Save"
+                    }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+                      "aria-label": `Undo row ${ri + 1}`,
+                      onClick: () => undoRow(selectedSheet, ri),
+                      className: "px-2 py-1 bg-gray-300 text-black rounded text-sm",
+                      children: "Undo"
                     }, void 0, false)]
-                  }, ri, true);
-                });
-              })()
-            }, void 0, false)]
-          }, void 0, true)
-        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "flex items-center justify-between mt-3",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "text-sm",
-            children: ["Page ", page]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "flex items-center gap-2",
-            children: [/*#__PURE__*/_jsxDEV("button", {
-              onClick: () => setPage(p => Math.max(1, p - 1)),
-              className: "px-2 py-1 border rounded",
-              children: "Prev"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-              onClick: () => setPage(p => p + 1),
-              className: "px-2 py-1 border rounded",
-              children: "Next"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
-              value: pageSize,
-              onChange: e => setPageSize(parseInt(e.target.value)),
-              className: "p-1 border rounded",
-              children: [/*#__PURE__*/_jsxDEV("option", {
-                value: 5,
-                children: "5"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
-                value: 10,
-                children: "10"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
-                value: 25,
-                children: "25"
-              }, void 0, false)]
-            }, void 0, true)]
-          }, void 0, true)]
-        }, void 0, true), showNewModal && selectedSheet && /*#__PURE__*/_jsxDEV("div", {
-          className: "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center",
-          children: /*#__PURE__*/_jsxDEV("div", {
-            className: "bg-white rounded-lg w-2/3 p-6",
-            children: [/*#__PURE__*/_jsxDEV("h3", {
-              className: "text-lg font-semibold mb-3",
-              children: ["Add New Entry — ", selectedSheet]
-            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-              className: "grid grid-cols-2 gap-3 max-h-72 overflow-auto mb-4",
-              children: sheets[selectedSheet].columns.map((col, ci) => /*#__PURE__*/_jsxDEV("div", {
-                children: [/*#__PURE__*/_jsxDEV("label", {
-                  className: "text-sm text-gray-600",
-                  children: col
-                }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-                  className: "w-full border p-2 rounded mt-1",
-                  value: newEntryData[col] || '',
-                  onChange: e => setNewEntryData(prev => ({
-                    ...prev,
-                    [col]: e.target.value
-                  }))
+                  }, void 0, true) : /*#__PURE__*/_jsxDEV("div", {
+                    className: "text-xs text-gray-500",
+                    children: "No changes"
+                  }, void 0, false)
                 }, void 0, false)]
-              }, ci, true))
-            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-              className: "flex justify-end gap-2",
-              children: [/*#__PURE__*/_jsxDEV("button", {
-                className: "px-3 py-2 border rounded",
-                onClick: () => setShowNewModal(false),
-                children: "Cancel"
-              }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-                className: "px-3 py-2 bg-blue-600 text-white rounded",
-                onClick: () => {
-                  setSheets(prev => {
-                    const copy = JSON.parse(JSON.stringify(prev));
-                    copy[selectedSheet].rows.push(Object.fromEntries(sheets[selectedSheet].columns.map(c => [c, newEntryData[c] || ''])));
-                    const newIndex = copy[selectedSheet].rows.length - 1;
-                    setDirtyRows(drPrev => {
-                      const copyDr = JSON.parse(JSON.stringify(drPrev || {}));
-                      copyDr[selectedSheet] = copyDr[selectedSheet] || {};
-                      copyDr[selectedSheet][newIndex] = true;
-                      return copyDr;
-                    });
-                    return copy;
-                  });
-                  setShowNewModal(false);
-                  // update charts after DOM settles
-                  setTimeout(() => {
-                    try {
-                      updateCharts();
-                    } catch (e) {}
-                  }, 200);
-                },
-                children: "Add Entry"
-              }, void 0, false)]
-            }, void 0, true)]
-          }, void 0, true)
+              }, ri, true);
+            });
+          })()
         }, void 0, false)]
-      }, void 0, true), activeView === 'analytics' && /*#__PURE__*/_jsxDEV("div", {
-        children: [/*#__PURE__*/_jsxDEV("div", {
-          className: "flex gap-3 mb-4",
-          children: [/*#__PURE__*/_jsxDEV("button", {
-            onClick: () => {
-              renderCharts();
-            },
-            className: "px-3 py-2 rounded",
-            style: {
-              background: PRIMARY,
-              color: '#fff'
-            },
-            children: "Refresh Charts"
-          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-            onClick: downloadAnalyticsPDF,
-            className: "px-3 py-2 rounded",
-            style: {
-              background: NAVY,
-              color: '#fff'
-            },
-            children: "Download Analytics Summary Report (PDF)"
+      }, void 0, true)
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      className: "flex items-center justify-between mt-3",
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        className: "text-sm",
+        children: ["Page ", page]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        className: "flex items-center gap-2",
+        children: [/*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setPage(p => Math.max(1, p - 1)),
+          className: "px-2 py-1 border rounded",
+          children: "Prev"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setPage(p => p + 1),
+          className: "px-2 py-1 border rounded",
+          children: "Next"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
+          value: pageSize,
+          onChange: e => setPageSize(parseInt(e.target.value)),
+          className: "p-1 border rounded",
+          children: [/*#__PURE__*/_jsxDEV("option", {
+            value: 5,
+            children: "5"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
+            value: 10,
+            children: "10"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
+            value: 25,
+            children: "25"
           }, void 0, false)]
+        }, void 0, true)]
+      }, void 0, true)]
+    }, void 0, true), showNewModal && selectedSheet && /*#__PURE__*/_jsxDEV("div", {
+      className: "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center",
+      children: /*#__PURE__*/_jsxDEV("div", {
+        className: "bg-white rounded-lg w-2/3 p-6",
+        children: [/*#__PURE__*/_jsxDEV("h3", {
+          className: "text-lg font-semibold mb-3",
+          children: ["Add New Entry — ", selectedSheet]
         }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "grid grid-cols-3 gap-4",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("h3", {
-              className: "font-semibold mb-2",
-              children: "Daily Movement Trends"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-              id: "lineChart2",
-              className: "chart-canvas"
+          className: "grid grid-cols-2 gap-3 max-h-72 overflow-auto mb-4",
+          children: sheets[selectedSheet].columns.map((col, ci) => /*#__PURE__*/_jsxDEV("div", {
+            children: [/*#__PURE__*/_jsxDEV("label", {
+              className: "text-sm text-gray-600",
+              children: col
+            }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
+              className: "w-full border p-2 rounded mt-1",
+              value: newEntryData[col] || '',
+              onChange: e => setNewEntryData(prev => ({
+                ...prev,
+                [col]: e.target.value
+              }))
             }, void 0, false)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("h3", {
-              className: "font-semibold mb-2",
-              children: "Occupancy Rate by Block"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-              id: "barChart2",
-              className: "chart-canvas"
-            }, void 0, false)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "p-4 card rounded",
-            children: [/*#__PURE__*/_jsxDEV("h3", {
-              className: "font-semibold mb-2",
-              children: "Rent Payment Status Breakdown"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
-              id: "pieChart2",
-              className: "chart-canvas"
-            }, void 0, false)]
-          }, void 0, true)]
-        }, void 0, true)]
-      }, void 0, true), activeView === 'reports' && /*#__PURE__*/_jsxDEV("div", {
-        className: "card p-4 rounded",
-        children: [/*#__PURE__*/_jsxDEV("h3", {
-          className: "font-semibold",
-          children: "Reports & Exports"
+          }, ci, true))
         }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "mt-3",
-          children: /*#__PURE__*/_jsxDEV("button", {
-            onClick: downloadAnalyticsPDF,
-            className: "px-3 py-2 rounded text-white",
-            style: {
-              background: NAVY
+          className: "flex justify-end gap-2",
+          children: [/*#__PURE__*/_jsxDEV("button", {
+            className: "px-3 py-2 border rounded",
+            onClick: () => setShowNewModal(false),
+            children: "Cancel"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            className: "px-3 py-2 bg-blue-600 text-white rounded",
+            onClick: () => {
+              setSheets(prev => {
+                const copy = JSON.parse(JSON.stringify(prev));
+                copy[selectedSheet].rows.push(Object.fromEntries(sheets[selectedSheet].columns.map(c => [c, newEntryData[c] || ''])));
+                const newIndex = copy[selectedSheet].rows.length - 1;
+                setDirtyRows(drPrev => {
+                  const copyDr = JSON.parse(JSON.stringify(drPrev || {}));
+                  copyDr[selectedSheet] = copyDr[selectedSheet] || {};
+                  copyDr[selectedSheet][newIndex] = true;
+                  return copyDr;
+                });
+                return copy;
+              });
+              setShowNewModal(false);
+              setTimeout(() => {
+                try {
+                  updateCharts();
+                } catch (e) {}
+              }, 200);
             },
-            children: "Download Analytics Summary PDF"
-          }, void 0, false)
-        }, void 0, false)]
-      }, void 0, true), activeView === 'about' && /*#__PURE__*/_jsxDEV("div", {
-        className: "card p-4 rounded",
-        children: [/*#__PURE__*/_jsxDEV("h3", {
-          className: "font-semibold",
-          children: "About — B2B Executive Insights"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-          className: "mt-2 text-sm text-gray-700",
-          children: "Automated Gate Pass and Housing/Rent tracking optimizes mill supply chain throughput, enhances security compliance, and improves estate revenue management. This portal centralizes operational registers, enables quick analytics, and offers exportable reports for stakeholders."
-        }, void 0, false)]
-      }, void 0, true), activeView === 'settings' && /*#__PURE__*/_jsxDEV("div", {
-        className: "card p-4 rounded",
-        children: [/*#__PURE__*/_jsxDEV("h3", {
-          className: "font-semibold",
-          children: "Settings"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-          className: "text-sm mt-2",
-          children: ["Theme and preferences (demo). Primary color: ", /*#__PURE__*/_jsxDEV("span", {
-            style: {
-              color: PRIMARY
-            },
-            children: PRIMARY
+            children: "Add Entry"
           }, void 0, false)]
         }, void 0, true)]
-      }, void 0, true), /*#__PURE__*/_jsxDEV("footer", {
-        className: "mt-6 text-sm text-gray-500",
-        children: "© 2016-2026 Gadoon Textile Mills Limited. All Rights Reserved. | Version 2.4.0 (Enterprise Build)"
+      }, void 0, true)
+    }, void 0, false)]
+  }, void 0, true);
+  const analyticsView = /*#__PURE__*/_jsxDEV("div", {
+    children: [/*#__PURE__*/_jsxDEV("div", {
+      className: "flex gap-3 mb-4",
+      children: [/*#__PURE__*/_jsxDEV("button", {
+        onClick: () => {
+          renderCharts();
+        },
+        className: "px-3 py-2 rounded",
+        style: {
+          background: PRIMARY,
+          color: '#fff'
+        },
+        children: "Refresh Charts"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+        onClick: downloadAnalyticsPDF,
+        className: "px-3 py-2 rounded",
+        style: {
+          background: NAVY,
+          color: '#fff'
+        },
+        children: "Download Analytics Summary Report (PDF)"
+      }, void 0, false)]
+    }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+      className: "grid grid-cols-3 gap-4",
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        className: "p-4 card rounded",
+        children: [/*#__PURE__*/_jsxDEV("h3", {
+          className: "font-semibold mb-2",
+          children: "Daily Movement Trends"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+          id: "lineChart2",
+          className: "chart-canvas"
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        className: "p-4 card rounded",
+        children: [/*#__PURE__*/_jsxDEV("h3", {
+          className: "font-semibold mb-2",
+          children: "Occupancy Rate by Block"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+          id: "barChart2",
+          className: "chart-canvas"
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        className: "p-4 card rounded",
+        children: [/*#__PURE__*/_jsxDEV("h3", {
+          className: "font-semibold mb-2",
+          children: "Rent Payment Status Breakdown"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("canvas", {
+          id: "pieChart2",
+          className: "chart-canvas"
+        }, void 0, false)]
+      }, void 0, true)]
+    }, void 0, true)]
+  }, void 0, true);
+  const reportsView = /*#__PURE__*/_jsxDEV("div", {
+    className: "card p-4 rounded",
+    children: [/*#__PURE__*/_jsxDEV("h3", {
+      className: "font-semibold",
+      children: "Reports & Exports"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      className: "mt-3",
+      children: /*#__PURE__*/_jsxDEV("button", {
+        onClick: downloadAnalyticsPDF,
+        className: "px-3 py-2 rounded text-white",
+        style: {
+          background: NAVY
+        },
+        children: "Download Analytics Summary PDF"
+      }, void 0, false)
+    }, void 0, false)]
+  }, void 0, true);
+  const aboutView = /*#__PURE__*/_jsxDEV("div", {
+    className: "card p-4 rounded",
+    children: [/*#__PURE__*/_jsxDEV("h3", {
+      className: "font-semibold",
+      children: "About — B2B Executive Insights"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+      className: "mt-2 text-sm text-gray-700",
+      children: "Automated Gate Pass and Housing/Rent tracking optimizes mill supply chain throughput, enhances security compliance, and improves estate revenue management. This portal centralizes operational registers, enables quick analytics, and offers exportable reports for stakeholders."
+    }, void 0, false)]
+  }, void 0, true);
+  const settingsView = /*#__PURE__*/_jsxDEV("div", {
+    className: "card p-4 rounded",
+    children: [/*#__PURE__*/_jsxDEV("h3", {
+      className: "font-semibold",
+      children: "Settings"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+      className: "text-sm mt-2",
+      children: ["Theme and preferences (demo). Primary color: ", /*#__PURE__*/_jsxDEV("span", {
+        style: {
+          color: PRIMARY
+        },
+        children: PRIMARY
       }, void 0, false)]
     }, void 0, true)]
   }, void 0, true);
+  return activeView === 'dashboard' ? dashboardView : activeView === 'upload' ? uploadView : activeView === 'table' ? tableView : activeView === 'analytics' ? analyticsView : activeView === 'reports' ? reportsView : activeView === 'about' ? aboutView : activeView === 'settings' ? settingsView : dashboardView;
 }
 
 // Chart rendering using simple heuristics
 function renderCharts() {
-  // fallback: render demo charts
-  const line = document.getElementById('lineChart') || document.getElementById('lineChart2');
-  const bar = document.getElementById('barChart') || document.getElementById('barChart2');
-  const pie = document.getElementById('pieChart') || document.getElementById('pieChart2');
-  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const entries = [12, 19, 8, 14, 10, 22, 18];
-  const exits = [8, 12, 6, 10, 9, 18, 14];
-  try {
-    if (window._lineChart) window._lineChart.destroy();
-  } catch (e) {}
-  if (line) {
-    window._lineChart = new Chart(line.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Entries',
-          data: entries,
-          borderColor: PRIMARY,
-          backgroundColor: 'rgba(0,163,224,0.08)',
-          fill: true
-        }, {
-          label: 'Exits',
-          data: exits,
-          borderColor: NAVY,
-          backgroundColor: 'rgba(12,35,64,0.06)',
-          fill: true
-        }]
+  const daily = {};
+  const occupancy = {};
+  const rentStatus = {
+    Paid: 0,
+    Pending: 0,
+    Overdue: 0
+  };
+  Object.keys(window.sheets || sheets || {}).forEach(name => {
+    const s = (window.sheets || sheets)[name];
+    s.rows.forEach(r => {
+      const din = r['Date/Time In'] || r['Date Time In'] || r['Entry Time'] || r['EntryDate'] || '';
+      const dout = r['Date/Time Out'] || r['Date Time Out'] || r['Exit Time'] || '';
+      if (din) {
+        const d = ('' + din).split(' ')[0];
+        daily[d] = daily[d] || {
+          in: 0,
+          out: 0
+        };
+        daily[d].in += 1;
       }
-    });
-  }
-  try {
-    if (window._barChart) window._barChart.destroy();
-  } catch (e) {}
-  if (bar) {
-    window._barChart = new Chart(bar.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: ['Block A', 'Block B', 'Block C'],
-        datasets: [{
-          label: 'Occupancy %',
-          data: [78, 65, 92],
-          backgroundColor: [PRIMARY, '#1E90FF', '#00C2A8']
-        }]
+      if (dout) {
+        const d = ('' + dout).split(' ')[0];
+        daily[d] = daily[d] || {
+          in: 0,
+          out: 0
+        };
+        daily[d].out += 1;
       }
+      const block = r['Block'] || r['Quarter #'] || r['Block #'] || r['Block Name'] || '';
+      if (block) occupancy[block] = (occupancy[block] || 0) + 1;
+      Object.values(r).forEach(v => {
+        const text = ('' + v).toLowerCase();
+        const m = ('' + v).match(/\d+[\d,]*/);
+        if (m) {
+          const amt = parseFloat(m[0].replace(/,/g, ''));
+          if (!isNaN(amt)) {
+            if (text.includes('paid')) rentStatus.Paid += amt;else if (text.includes('overdue') || text.includes('due')) rentStatus.Overdue += amt;else rentStatus.Pending += amt;
+          }
+        }
+      });
     });
-  }
-  try {
-    if (window._pieChart) window._pieChart.destroy();
-  } catch (e) {}
-  if (pie) {
-    window._pieChart = new Chart(pie.getContext('2d'), {
-      type: 'doughnut',
-      data: {
-        labels: ['Paid', 'Pending', 'Overdue'],
-        datasets: [{
-          data: [60, 25, 15],
-          backgroundColor: [PRIMARY, '#FFD36E', '#FF7A7A']
-        }]
-      }
-    });
-  }
+  });
+  renderChartsFromData({
+    daily,
+    occupancy,
+    rentStatus
+  });
 }
 function renderChartsFromData({
   daily = {},
