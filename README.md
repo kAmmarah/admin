@@ -1,4 +1,4 @@
-# Gadoon Textile Mills — Admin Portal (Frontend)
+# Gadoon Textile Mills — Admin Portal 
 
 Simple SPA demo for the Admin Portal and B2B Analytics System.
 
