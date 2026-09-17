@@ -104,6 +104,7 @@ function App() {
   const [newEntryData, setNewEntryData] = useState({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   useEffect(() => {
     if (!selectedSheet) {
       const keys = Object.keys(sheets);
@@ -531,12 +532,21 @@ function App() {
   return /*#__PURE__*/_jsxDEV("div", {
     className: "min-h-screen flex",
     children: [/*#__PURE__*/_jsxDEV("aside", {
-      className: "w-72 p-4 nav-bg text-white min-h-screen",
+      className: (sidebarCollapsed ? "w-20 p-3 nav-bg text-white min-h-screen transition-all duration-200" : "w-72 p-4 nav-bg text-white min-h-screen transition-all duration-200"),
       role: "navigation",
       "aria-label": "Main sidebar",
       children: [/*#__PURE__*/_jsxDEV("div", {
         className: "mb-6",
-        children: [/*#__PURE__*/_jsxDEV("h1", {
+        children: sidebarCollapsed ? /*#__PURE__*/_jsxDEV("div", {
+          className: "w-full flex items-center justify-center",
+          children: /*#__PURE__*/_jsxDEV("img", {
+            src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
+            alt: "Gadoon",
+            style: {
+              height: 28
+            }
+          }, void 0, false)
+        }, void 0, false) : [/*#__PURE__*/_jsxDEV("h1", {
           className: "text-2xl font-extrabold",
           children: [/*#__PURE__*/_jsxDEV("span", {
             className: "brand-cyan",
@@ -659,6 +669,32 @@ function App() {
                     children: activeView === 'dashboard' ? 'Dashboard' : activeView.charAt(0).toUpperCase() + activeView.slice(1)
                   }, void 0, false)]
                 }, void 0, true)]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("button", {
+            onClick: () => setSidebarCollapsed(!sidebarCollapsed),
+            className: "ml-2 px-2 py-1 border rounded text-sm text-gray-600",
+            title: "Toggle sidebar",
+            children: sidebarCollapsed ? '▷' : '◁'
+          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+            className: "ml-4 flex items-center gap-4",
+            children: [/*#__PURE__*/_jsxDEV("div", {
+              className: "text-center",
+              children: [/*#__PURE__*/_jsxDEV("div", {
+                className: "text-xs text-gray-500",
+                children: "Total"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+                className: "text-lg font-bold",
+                children: kpis ? kpis.totalGateToday : 0
+              }, void 0, false)]
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              className: "text-center",
+              children: [/*#__PURE__*/_jsxDEV("div", {
+                className: "text-xs text-gray-500",
+                children: "Inside"
+              }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+                className: "text-lg font-bold",
+                children: kpis ? kpis.activeVehicles : 0
+              }, void 0, false)]
+            }, void 0, false)]
           }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
             className: "flex items-center gap-2",
             onDragOver: e => e.preventDefault(),
