@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Gadoon / GoDown Textile Mills — Admin Portal</title>
+    <title>Gadoon Textile Mills Limited — Admin Portal</title>
     <!-- Tailwind via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter font -->
@@ -462,7 +462,7 @@ function App() {
     const doc = new jsPDF();
     const k = generateKPIs();
     doc.setFontSize(14);
-    doc.text('Gadoon / GoDown Textile Mills — Analytics Summary', 14, 20);
+    doc.text('Gadoon Textile Mills Limited — Analytics Summary', 14, 20);
     doc.setFontSize(11);
     doc.text(`Total Gate Entries (loaded): ${k.totalGateToday}`, 14, 36);
     doc.text(`Active Vehicles Inside (est): ${k.activeVehicles}`, 14, 44);
@@ -491,7 +491,7 @@ function App() {
       className: "w-full max-w-md p-6 card rounded-lg",
       children: [/*#__PURE__*/_jsxDEV("h2", {
         className: "text-2xl font-semibold brand-cyan",
-        children: "Gadoon / GoDown Admin — Login"
+        children: "Gadoon Textile Mills Limited — Login"
       }, void 0, false), /*#__PURE__*/_jsxDEV("form", {
         onSubmit: handleLogin,
         className: "mt-4",
@@ -540,11 +540,11 @@ function App() {
           className: "text-2xl font-extrabold",
           children: [/*#__PURE__*/_jsxDEV("span", {
             className: "brand-cyan",
-            children: "gadoon"
-          }, void 0, false), " / GoDown"]
+            children: "Gadoon"
+          }, void 0, false), " Textile Mills Limited"]
         }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
           className: "text-xs mt-1",
-          children: "Textile Mills Limited"
+          children: "Admin Portal"
         }, void 0, false)]
       }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
         className: "mb-4",
@@ -627,7 +627,7 @@ function App() {
         }, void 0, false)]
       }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
         className: "mt-6 text-xs text-gray-300",
-        children: "© 2016-2026 GoDown Textile Mill. All Rights Reserved. | Version 2.4.0 (Enterprise Build)"
+        children: "© 2016-2026 Gadoon Textile Mills Limited. All Rights Reserved. | Version 2.4.0 (Enterprise Build)"
       }, void 0, false)]
     }, void 0, true), /*#__PURE__*/_jsxDEV("main", {
       id: "main-content",
@@ -640,16 +640,16 @@ function App() {
           className: "flex items-center gap-4",
           children: [/*#__PURE__*/_jsxDEV("div", {
             className: "flex items-center",
-            children: [/*#__PURE__*/_jsxDEV("img", {
-              id: "appLogo",
-              src: "assets/logo.png",
-              alt: "GoDown",
-              style: {
-                height: 36,
-                marginRight: 8
-              },
-              onError: e => e.target.style.display = 'none'
-            }, void 0, false), /*#__PURE__*/_jsxDEV("h2", {
+                children: [/*#__PURE__*/_jsxDEV("img", {
+                  id: "appLogo",
+                  src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
+                  alt: "Gadoon Textile Mills Limited",
+                  style: {
+                    height: 36,
+                    marginRight: 8
+                  },
+                  onError: e => e.target.style.display = 'none'
+                }, void 0, false), /*#__PURE__*/_jsxDEV("h2", {
               className: "text-xl font-semibold",
               children: activeView === 'dashboard' ? 'Dashboard' : activeView.charAt(0).toUpperCase() + activeView.slice(1)
             }, void 0, false)]
@@ -1120,7 +1120,7 @@ function App() {
         }, void 0, true)]
       }, void 0, true), /*#__PURE__*/_jsxDEV("footer", {
         className: "mt-6 text-sm text-gray-500",
-        children: "© 2016-2026 GoDown Textile Mill. All Rights Reserved. | Version 2.4.0 (Enterprise Build)"
+        children: "© 2016-2026 Gadoon Textile Mills Limited. All Rights Reserved. | Version 2.4.0 (Enterprise Build)"
       }, void 0, false)]
     }, void 0, true)]
   }, void 0, true);
@@ -1338,7 +1338,7 @@ function downloadAllSheets() {
     });
     saveAs(new Blob([wbout], {
       type: 'application/octet-stream'
-    }), 'GoDown_Textile_Mills_Data_Export.xlsx');
+    }), 'Gadoon_Textile_Mills_Data_Export.xlsx');
   } catch (e) {
     alert('Export failed: ' + e.message);
   }
