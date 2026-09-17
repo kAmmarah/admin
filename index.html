@@ -536,26 +536,39 @@ function App() {
       role: "navigation",
       "aria-label": "Main sidebar",
       children: [/*#__PURE__*/_jsxDEV("div", {
-        className: "mb-6",
+        className: "mb-5 flex items-center justify-start gap-3",
         children: sidebarCollapsed ? /*#__PURE__*/_jsxDEV("div", {
           className: "w-full flex items-center justify-center",
           children: /*#__PURE__*/_jsxDEV("img", {
             src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
             alt: "Gadoon",
             style: {
-              height: 28
+              height: 28,
+              width: 28,
+              borderRadius: 6
             }
           }, void 0, false)
-        }, void 0, false) : [/*#__PURE__*/_jsxDEV("h1", {
-          className: "text-2xl font-extrabold",
-          children: [/*#__PURE__*/_jsxDEV("span", {
-            className: "brand-cyan",
-            children: "Gadoon"
-          }, void 0, false), " Textile Mills Limited"]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "text-xs mt-1",
-          children: "Admin Portal"
-        }, void 0, false)]
+        }, void 0, false) : [/*#__PURE__*/_jsxDEV("img", {
+          src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
+          alt: "Gadoon Textile Mills Limited",
+          style: {
+            height: 26,
+            width: 26,
+            borderRadius: 6
+          }
+        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+          className: "flex flex-col leading-tight",
+          children: [/*#__PURE__*/_jsxDEV("h1", {
+            className: "text-2xl font-extrabold leading-none",
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              className: "brand-cyan",
+              children: "Gadoon"
+            }, void 0, false), " Textile Mills Limited"]
+          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+            className: "text-xs mt-1 text-gray-300",
+            children: "Admin Portal"
+          }, void 0, false)]
+        }, void 0, true)]
       }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
         className: "mb-4",
         children: [/*#__PURE__*/_jsxDEV("div", {
@@ -649,23 +662,25 @@ function App() {
         children: [/*#__PURE__*/_jsxDEV("div", {
           className: "flex items-center gap-4",
           children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "flex items-center",
+            className: "flex items-center gap-3",
                 children: [/*#__PURE__*/_jsxDEV("img", {
                   id: "appLogo",
                   src: "assets/4896610e-5e55-4061-a010-a92d09c93538.jpg",
                   alt: "Gadoon Textile Mills Limited",
                   style: {
-                    height: 36,
-                    marginRight: 8
+                    height: 32,
+                    width: 32,
+                    borderRadius: 6,
+                    marginRight: 0
                   },
                   onError: e => e.target.style.display = 'none'
                 }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                  className: "flex flex-col",
+                  className: "flex flex-col leading-tight",
                   children: [/*#__PURE__*/_jsxDEV("span", {
-                    className: "text-sm font-semibold",
+                    className: "text-xl font-semibold",
                     children: "Gadoon Textile Mills Limited"
                   }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
-                    className: "text-xs text-gray-600",
+                    className: "text-xs text-gray-500",
                     children: activeView === 'dashboard' ? 'Dashboard' : activeView.charAt(0).toUpperCase() + activeView.slice(1)
                   }, void 0, false)]
                 }, void 0, true)]
